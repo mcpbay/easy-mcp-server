@@ -1,0 +1,31 @@
+import type { IGenericProtocolResponse } from "./common.ts";
+import type { IPrompt, IPromptMessage } from "./entities.ts";
+
+/**
+ * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
+ */
+export interface ICompletionCompleteResponse extends IGenericProtocolResponse<{
+  completion: {
+    /**
+     * 100 items max each time.
+     */
+    values: string[];
+    hasMore: boolean;
+    total?: number;
+  };
+}> { }
+
+/**
+ * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
+ */
+export interface IPromptsListResponse extends IGenericProtocolResponse<{
+  prompts: IPrompt[];
+}> { }
+
+/**
+ * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
+ */
+export interface IPromptsGetResponse extends IGenericProtocolResponse<{
+  description: string;
+  messages: IPromptMessage[];
+}> { }
