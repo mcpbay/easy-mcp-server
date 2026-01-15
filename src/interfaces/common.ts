@@ -3,11 +3,13 @@ export interface IClientMinimalRequestStructure {
   id: number;
 }
 
-export interface IGenericProtocolResponse<T> extends IClientMinimalRequestStructure {
+export interface IGenericProtocolResponse<T>
+  extends IClientMinimalRequestStructure {
   result: T;
 }
 
-export interface IProtocolErrorResponse<T> extends IClientMinimalRequestStructure {
+export interface IProtocolErrorResponse<T>
+  extends IClientMinimalRequestStructure {
   error: {
     code: number;
     message: string;
@@ -16,5 +18,10 @@ export interface IProtocolErrorResponse<T> extends IClientMinimalRequestStructur
 }
 
 export interface IGenericRequest extends IClientMinimalRequestStructure {
+  method: string;
+}
+
+export interface IGenericNotification
+  extends Omit<IClientMinimalRequestStructure, "id"> {
   method: string;
 }

@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --watch -A main.ts"
+    "dev": "deno run --watch -A --env-file main.ts"
   },
   "imports": {
     "@online/is": "jsr:@online/is@^0.0.6",

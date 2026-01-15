@@ -1,5 +1,9 @@
 export enum ProtocolMessage {
   /**
+   * https://modelcontextprotocol.info/specification/2024-11-05/basic/lifecycle/#initialization
+   */
+  INITIALIZE = "initialize",
+  /**
    * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
    */
   PROMPTS_LIST = "prompts/list",
@@ -14,5 +18,6 @@ export enum ProtocolMessage {
 }
 
 export enum ProtocolNotification {
-  PROMPTS_LIST_CHANGED = "notifications/prompts/list_changed"
+  INITIALIZED = "notifications/initialized",
+  PROMPTS_LIST_CHANGED = "notifications/prompts/list_changed",
 }

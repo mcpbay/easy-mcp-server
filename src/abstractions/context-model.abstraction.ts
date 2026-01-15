@@ -1,7 +1,20 @@
-import type { ICapabilities, IPrompt, IPromptMessage } from "../interfaces/mod.ts";
+import type {
+  ICapabilities,
+  IInitializeRequest,
+  IPrompt,
+  IPromptMessage,
+} from "../interfaces/mod.ts";
 
-export abstract class ContextModel {
-  abstract onGetCapabilities?(): Promise<ICapabilities>;
-  abstract onGetPrompts?(): Promise<IPrompt[]>;
-  abstract onGetPrompt?(promt: IPrompt, args: Record<string, unknown>): Promise<IPromptMessage[]>;
+export interface ContextModel {
+  onGetInformation(
+    abortController: AbortController,
+  ): Promise<IInitializeRequest["params"]["clientInfo"]>;
+  onGetCapabilities?(abortController: AbortController): Promise<ICapabilities>;
+  onGetPrompts?(abortController: AbortController): Promise<IPrompt[]>;
+  onGetPrompt?(
+    promt: IPrompt,
+    args: Record<string, unknown>,
+    abortController: AbortController,
+  ): Promise<IPromptMessage[]>;
+  onConnect?(abortController: AbortController): Promise<void>;
 }

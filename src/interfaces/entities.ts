@@ -1,11 +1,12 @@
-
-
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
  */
 export interface IPromptMessage {
   role: "user" | "assistant";
-  content: IPromptMessageTextContent | IPromptMessageImageContent | IPromptMessageResourceContent;
+  content:
+    | IPromptMessageTextContent
+    | IPromptMessageImageContent
+    | IPromptMessageResourceContent;
 }
 
 /**
@@ -30,7 +31,7 @@ export interface IPromptMessageImageContent {
  */
 export interface IPromptMessageResourceContent {
   type: "resource";
-  resource: Omit<IResource, 'name'>;
+  resource: Omit<IResource, "name">;
 }
 
 /**

@@ -1,9 +1,11 @@
 import type { IClientMinimalRequestStructure } from "./common.ts";
+import { ICapabilities } from "./entities.ts";
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
  */
-export interface ICompletionCompleteMessage extends IClientMinimalRequestStructure {
+export interface ICompletionCompleteMessage
+  extends IClientMinimalRequestStructure {
   method: "completion/complete";
   params: {
     ref: {
@@ -20,13 +22,12 @@ export interface ICompletionCompleteMessage extends IClientMinimalRequestStructu
   };
 }
 
-
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string; };
+  params?: { cursor: string };
 }
 
 /**
@@ -37,5 +38,20 @@ export interface IPromptsGetRequest extends IClientMinimalRequestStructure {
   params: {
     name: string;
     arguments: Record<string, unknown>;
+  };
+}
+
+/**
+ * https://modelcontextprotocol.info/specification/2024-11-05/basic/lifecycle/#initialization
+ */
+export interface IInitializeRequest extends IClientMinimalRequestStructure {
+  method: "initialize";
+  params: {
+    protocolVersion: string;
+    capabilities: ICapabilities;
+    clientInfo: {
+      name: string;
+      version: string;
+    };
   };
 }
