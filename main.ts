@@ -3,29 +3,39 @@ import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
 import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
-import { errorResponse, successResponse } from "./src/generators/mod.ts";
-import type {
-  ICapabilities,
-  IClientMinimalRequestStructure,
-  IInitializeResponse,
-  IPingResponse,
-  IPrompt,
-  IPromptMessage,
-  IPromptsListResponse,
-  IContextModel,
-  IContextModelOptions
+import { errorResponse, progressNotification, successResponse } from "./src/generators/mod.ts";
+import {
+  type ICapabilities,
+  type IClientMinimalRequestStructure,
+  type IInitializeResponse,
+  type IPingResponse,
+  type IPrompt,
+  type IPromptMessage,
+  type IPromptsListResponse,
+  type IContextModel,
+  type IContextModelOptions,
+  type IGenericRequest,
+  type IRequestParamsMetadata,
+  type IToolsListResponse,
+  type IPromptsGetResponse,
+  type ICompletionCompleteResponse,
+  ContextModelEntityType,
+  IToolsCallResponse
 } from "./src/interfaces/mod.ts";
 import { StdioTransport } from "./src/transports/mod.ts";
 import type { IMessageHandlerClass, RequestId } from "./src/types/mod.ts";
 import { crashIfNot, textToSlug } from "./src/utils/mod.ts";
 import {
   isCancelledNotification,
+  isCompletionCompleteRequest,
   isGenericRequest,
   isInitializedNotification,
   isInitializeRequest,
   isPingRequest,
   isPromptsGetRequest,
   isPromptsListRequest,
+  isToolsCallRequest,
+  isToolsListRequest,
 } from "./src/validators/mod.ts";
 
 function writeLog(line: string) {
@@ -126,10 +136,29 @@ export class EasyMCPServer implements IMessageHandlerClass {
     message: object,
     abortController: AbortController,
   ) {
-    const notify: IContextModelOptions["notify"] = (message: object) => this.transport.notify(message);
     const contextOptions: IContextModelOptions = {
       abortController,
-      notify
+      progress: async (value: number, total?: number) => {
+        const progressToken = ((message as IGenericRequest).params as IRequestParamsMetadata)._meta?.progressToken;
+
+        crashIfNot(value >= 0 && value <= 1, {
+          code: INVALID_PARAMS,
+          message: "Progress value must be between 0 and 1",
+        });
+
+        if (!isUndefined(total)) {
+          crashIfNot(total > 0 && total <= 1, {
+            code: INVALID_PARAMS,
+            message: "Progress total must be between 0 and 1",
+          });
+        }
+
+        if (!progressToken) {
+          return;
+        }
+
+        await this.transport.notify(progressNotification(progressToken, value, total));
+      },
     };
 
     writeLog("Message handler of: " + JSON.stringify(message));
@@ -152,11 +181,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         writeLog("Supported protocol");
 
         const capabilities =
-          (await this.contextModel.onGetCapabilities?.(contextOptions)) ??
+          (await this.contextModel.onListCapabilities?.(contextOptions)) ??
           DEFAULT_CAPABILITIES;
 
         const serverInfo =
-          await this.contextModel.onGetInformation(
+          await this.contextModel.onListInformation(
             contextOptions,
           );
 
@@ -188,7 +217,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isPromptsListRequest(message): {
         const { id, params } = message;
-        const prompts = await this.contextModel.onGetPrompts?.(contextOptions);
+        const prompts = await this.contextModel.onListPrompts?.(contextOptions);
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -209,7 +238,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isPromptsGetRequest(message): {
         const { id, params } = message;
         const { name: promptName, arguments: promptArgs } = params;
-        const prompts = await this.contextModel.onGetPrompts?.(contextOptions);
+        const prompts = await this.contextModel.onListPrompts?.(contextOptions);
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -230,7 +259,79 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No prompt messages",
         });
 
-        await this.transport.response({ id, result: promptResponse });
+        await this.transport.response(successResponse<IPromptsGetResponse["result"]>(id, promptResponse));
+        break;
+      }
+      case isToolsListRequest(message): {
+        const { id, params } = message;
+        const tools = await this.contextModel.onListTools?.(contextOptions);
+
+        crashIfNot(tools, { code: INTERNAL_ERROR, message: "No prompts" });
+
+        if (params) {
+          const { cursor } = params;
+          const cursorIndex = tools.findIndex((p) =>
+            textToSlug(p.name) === textToSlug(cursor)
+          );
+
+          if (cursorIndex !== -1) {
+            tools.splice(0, cursorIndex);
+          }
+        }
+
+        await this.transport.response(successResponse<IToolsListResponse["result"]>(id, { tools }));
+        break;
+      }
+      case isToolsCallRequest(message): {
+        const { id, params } = message;
+        const { name: toolName, arguments: toolArgs } = params;
+        const tools = await this.contextModel.onListTools?.(contextOptions);
+
+        crashIfNot(tools, { code: INTERNAL_ERROR, message: "No tools" });
+
+        const tool = tools.find((p) => textToSlug(p.name) === textToSlug(toolName));
+
+        crashIfNot(tool, { code: INVALID_PARAMS, message: "No tool" });
+
+        const toolResponse = await this.contextModel.onCallTool?.(
+          tool,
+          toolArgs ?? {},
+          contextOptions,
+        );
+
+        crashIfNot(toolResponse, {
+          code: INTERNAL_ERROR,
+          message: "No tool messages",
+        });
+
+        await this.transport.response(successResponse<IToolsCallResponse["result"]>(id, toolResponse));
+        break;
+      }
+      case isCompletionCompleteRequest(message): {
+        const { id, params } = message;
+        const { ref, argument } = params;
+        const completion = await this.contextModel.onGetCompletion?.(
+          ref.type === "ref/prompt" ? ContextModelEntityType.PROMPT : ContextModelEntityType.RESOURCE,
+          argument,
+          contextOptions,
+        );
+
+        if (isUndefined(completion)) {
+          return this.transport.response(successResponse<ICompletionCompleteResponse["result"]>(id, {
+            completion: {
+              values: [],
+              hasMore: false,
+              total: 0
+            }
+          }));
+        }
+
+        completion.values = completion.values
+          .sort((a, b) => a.localeCompare(b))
+          .splice(0, 100);
+        completion.total = completion.values.length;
+
+        await this.transport.response(successResponse<ICompletionCompleteResponse["result"]>(id, { completion }));
         break;
       }
       default: {
@@ -267,14 +368,14 @@ export class EasyMCPServer implements IMessageHandlerClass {
 }
 
 class CustomContext implements IContextModel {
-  async onGetInformation(options: IContextModelOptions) {
+  async onListInformation(options: IContextModelOptions) {
     return {
       name: "EasyMCP Mock Server",
       version: "0.1.0-mock",
     };
   }
 
-  async onGetCapabilities(options: IContextModelOptions) {
+  async onListCapabilities(options: IContextModelOptions) {
     return DEFAULT_CAPABILITIES;
   }
 
@@ -282,7 +383,7 @@ class CustomContext implements IContextModel {
     // console.log("MCP client connected and initialized.");
   }
 
-  async onGetPrompts(options: IContextModelOptions): Promise<IPrompt[]> {
+  async onListPrompts(options: IContextModelOptions): Promise<IPrompt[]> {
     return [{
       name: "Generate Greeting",
       description: "Generates a simple greeting message.",
@@ -298,25 +399,32 @@ class CustomContext implements IContextModel {
     prompt: IPrompt,
     args: Record<string, unknown>,
     options: IContextModelOptions,
-  ): Promise<IPromptMessage[]> {
+  ): Promise<IPromptsGetResponse["result"]> {
     if (prompt.name === "Generate Greeting") {
       const name = args.name as string ?? "World";
-      return [{
-        role: "user",
-        content: {
-          type: "text",
-          text: `Generate a greeting for ${name}.`,
-        },
-      }, {
-        role: "assistant",
-        content: {
-          type: "text",
-          text: `Hello, ${name}! Welcome to the EasyMCP mock environment.`,
-        },
-      }];
+      return {
+        messages: [{
+          role: "user",
+          content: {
+            type: "text",
+            text: `Generate a greeting for ${name}.`,
+          },
+        }, {
+          role: "assistant",
+          content: {
+            type: "text",
+            text: `Hello, ${name}! Welcome to the EasyMCP mock environment.`,
+          },
+        }],
+        description: ""
+      };
     }
 
-    return [];
+    return { messages: [], description: "" };
+  }
+
+  onGetCompletion(): Promise<ICompletionCompleteResponse["result"]["completion"]> {
+    throw new Error("Not implemented");
   }
 }
 

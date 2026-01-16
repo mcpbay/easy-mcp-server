@@ -1,10 +1,10 @@
-import type { IClientMinimalRequestStructure } from "./common.ts";
+import type { IClientMinimalRequestStructure, IRequestParamsMetadata } from "./common.ts";
 import { ICapabilities } from "./entities.ts";
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
  */
-export interface ICompletionCompleteMessage
+export interface ICompletionCompleteRequest
   extends IClientMinimalRequestStructure {
   method: "completion/complete";
   params: {
@@ -19,7 +19,7 @@ export interface ICompletionCompleteMessage
       name: string;
       value: string;
     };
-  };
+  } & IRequestParamsMetadata;
 }
 
 /**
@@ -27,7 +27,7 @@ export interface ICompletionCompleteMessage
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string };
+  params?: { cursor: string; } & IRequestParamsMetadata;
 }
 
 /**
@@ -38,7 +38,7 @@ export interface IPromptsGetRequest extends IClientMinimalRequestStructure {
   params: {
     name: string;
     arguments: Record<string, unknown>;
-  };
+  } & IRequestParamsMetadata;
 }
 
 /**
@@ -53,7 +53,7 @@ export interface IInitializeRequest extends IClientMinimalRequestStructure {
       name: string;
       version: string;
     };
-  };
+  } & IRequestParamsMetadata;
 }
 
 /**
@@ -61,4 +61,17 @@ export interface IInitializeRequest extends IClientMinimalRequestStructure {
  */
 export interface IPingRequest extends IClientMinimalRequestStructure {
   method: "ping";
+}
+
+export interface IToolsListRequest extends IClientMinimalRequestStructure {
+  method: "tools/list";
+  params?: { cursor: string; } & IRequestParamsMetadata;
+}
+
+export interface IToolsCallRequest extends IClientMinimalRequestStructure {
+  method: "tools/call";
+  params: {
+    name: string;
+    arguments: Record<string, unknown>;
+  } & IRequestParamsMetadata;
 }

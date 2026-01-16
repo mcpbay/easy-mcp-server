@@ -10,6 +10,12 @@ export interface IGenericProtocolResponse<T>
   result: T;
 }
 
+export interface IRequestParamsMetadata {
+  _meta?: {
+    progressToken: string;
+  };
+}
+
 export interface IProtocolErrorResponse<T>
   extends IClientMinimalRequestStructure {
   error: {
@@ -21,6 +27,7 @@ export interface IProtocolErrorResponse<T>
 
 export interface IGenericRequest extends IClientMinimalRequestStructure {
   method: string;
+  params: never;
 }
 
 export interface IGenericNotification

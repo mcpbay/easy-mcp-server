@@ -28,3 +28,12 @@ export interface ICancelledNotification extends IGenericNotification {
     rason?: string;
   };
 }
+
+export interface IProgressNotification extends IGenericNotification {
+  method: "notifications/progress";
+  params: {
+    progressToken: RequestId;
+    progress: number;
+    total?: number;
+  };
+}

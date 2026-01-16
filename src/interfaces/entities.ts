@@ -4,9 +4,9 @@
 export interface IPromptMessage {
   role: "user" | "assistant";
   content:
-    | IPromptMessageTextContent
-    | IPromptMessageImageContent
-    | IPromptMessageResourceContent;
+  | IPromptMessageTextContent
+  | IPromptMessageImageContent
+  | IPromptMessageResourceContent;
 }
 
 /**
@@ -39,7 +39,7 @@ export interface IPromptMessageResourceContent {
  */
 export interface IPromptArgument {
   name: string;
-  description?: string;
+  description: string;
   required?: boolean;
 }
 
@@ -58,14 +58,23 @@ export interface IResource {
  */
 export interface IPrompt {
   name: string;
-  description?: string;
+  description: string;
   arguments?: IPromptArgument[];
+}
+
+export interface IInputSchemaProperty {
+  type: "object";
+  properties?: Record<string, object>;
+  required?: string[];
 }
 
 export interface ITool {
   name: string;
   description: string;
-  link: string;
+  /**
+   * https://json-schema.org/
+   */
+  inputSchema: IInputSchemaProperty;
 }
 
 export interface ICapabilities {
@@ -75,9 +84,10 @@ export interface ICapabilities {
   prompts: {
     listChanged: boolean;
   };
-  resources: {
+  resources: Partial<{
     listChanged: boolean;
-  };
+    subscribe: boolean;
+  }>;
   completions: {
     listChanged: boolean;
   };

@@ -12,10 +12,17 @@ export enum ProtocolMessage {
    */
   PROMPTS_GET = "prompts/get",
   /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/tools
+   */
+  TOOLS_LIST = "tools/list",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/tools
+   */
+  TOOLS_CALL = "tools/call",
+  /**
    * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
    */
   COMPLETION_COMPLETE = "completion/complete",
-
   /**
    * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping
    */
@@ -26,4 +33,6 @@ export enum ProtocolNotification {
   INITIALIZED = "notifications/initialized",
   CANCELLED = "notifications/cancelled",
   PROMPTS_LIST_CHANGED = "notifications/prompts/list_changed",
+  PROGRESS = "notifications/progress",
+  TOOLS_LIST_CHANGED = "notifications/tools/list_changed"
 }
