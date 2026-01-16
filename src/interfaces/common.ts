@@ -1,6 +1,8 @@
+import { RequestId } from "../types/mod.ts";
+
 export interface IClientMinimalRequestStructure {
   jsonrpc: "2.0";
-  id: number;
+  id: RequestId;
 }
 
 export interface IGenericProtocolResponse<T>

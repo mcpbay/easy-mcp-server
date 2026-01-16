@@ -1,3 +1,4 @@
+import { RequestId } from "../types/mod.ts";
 import type {
   IClientMinimalRequestStructure,
   IGenericNotification,
@@ -15,4 +16,15 @@ export interface IPromptsListChangedNotification extends IGenericNotification {
  */
 export interface IInitializedNotification extends IGenericNotification {
   method: "notifications/initialized";
+}
+
+/**
+ * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/cancellation
+ */
+export interface ICancelledNotification extends IGenericNotification {
+  method: "notifications/cancelled";
+  params: {
+    requestId: RequestId;
+    rason?: string;
+  };
 }

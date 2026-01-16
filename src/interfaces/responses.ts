@@ -14,7 +14,7 @@ export interface ICompletionCompleteResponse extends
       hasMore: boolean;
       total?: number;
     };
-  }> {}
+  }> { }
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
@@ -22,7 +22,7 @@ export interface ICompletionCompleteResponse extends
 export interface IPromptsListResponse extends
   IGenericProtocolResponse<{
     prompts: IPrompt[];
-  }> {}
+  }> { }
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
@@ -31,7 +31,7 @@ export interface IPromptsGetResponse extends
   IGenericProtocolResponse<{
     description: string;
     messages: IPromptMessage[];
-  }> {}
+  }> { }
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/basic/lifecycle/#initialization
@@ -44,4 +44,9 @@ export interface IInitializeResponse extends
       name: string;
       version: string;
     };
-  }> {}
+  }> { }
+
+/**
+ * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping
+ */
+export interface IPingResponse extends IGenericProtocolResponse<{}> { }

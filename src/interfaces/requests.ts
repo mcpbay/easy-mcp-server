@@ -55,3 +55,10 @@ export interface IInitializeRequest extends IClientMinimalRequestStructure {
     };
   };
 }
+
+/**
+ * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping
+ */
+export interface IPingRequest extends IClientMinimalRequestStructure {
+  method: "ping";
+}

@@ -2,9 +2,10 @@ import type {
   IGenericProtocolResponse,
   IProtocolErrorResponse,
 } from "../interfaces/mod.ts";
+import type { RequestId } from "../types/mod.ts";
 
 export function successResponse<T extends object>(
-  id: number,
+  id: RequestId,
   result: T,
 ): IGenericProtocolResponse<T> {
   return {
@@ -15,7 +16,7 @@ export function successResponse<T extends object>(
 }
 
 export function errorResponse<T>(
-  id: number,
+  id: RequestId,
   error: IProtocolErrorResponse<T>["error"],
 ): IProtocolErrorResponse<T> {
   return {

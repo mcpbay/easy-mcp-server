@@ -1,11 +1,9 @@
 import process from "node:process";
 import { Transport } from "../abstractions/mod.ts";
-import { MessageHandler } from "../types/mod.ts";
+import type { IMessageHandlerClass } from "../types/mod.ts";
 
 export class StdioTransport extends Transport {
-  async onInitialize(messagesHandler: MessageHandler): Promise<void> {
-    console.log("Stdio transport starting...");
-
+  async onInitialize(messageHandlerClass: IMessageHandlerClass): Promise<void> {
     process.stdin.setEncoding("utf-8");
     let buffer = "";
 
@@ -26,24 +24,26 @@ export class StdioTransport extends Transport {
             }
           })();
 
-          messagesHandler(parsedMessage);
+          messageHandlerClass.messageHandler(parsedMessage);
         }
       }
     });
 
     process.stdin.on("end", () => void this.onClose());
-    console.log("Stdio transport started!");
   }
 
   async response(message: object): Promise<void> {
-    throw new Error("Method not implemented.");
+    // Send response JSON followed by a newline character to stdout
+    process.stdout.write(JSON.stringify(message) + "\n");
   }
 
   async notify(message: object): Promise<void> {
-    throw new Error("Method not implemented.");
+    // Send notification JSON followed by a newline character to stdout
+    process.stdout.write(JSON.stringify(message) + "\n");
   }
 
   public async onClose(): Promise<void> {
+    // Log transport stop to stderr/console.error, not stdout
     console.error("Stdio transport stopping...");
   }
 }
