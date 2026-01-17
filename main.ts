@@ -1,4 +1,5 @@
 /// <reference lib="deno.ns" />
+import { getStringUid } from "@online/get-string-uid";
 import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
 import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
@@ -251,11 +252,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         if (params) {
           const { cursor } = params;
           const cursorIndex = prompts.findIndex((p) =>
-            textToSlug(p.name) === textToSlug(cursor)
+            String(getStringUid(p.name)) === cursor
           );
 
           if (cursorIndex !== -1) {
-            prompts.splice(0, cursorIndex);
+            prompts.splice(cursorIndex, cursorIndex + 100);
           }
         }
 
@@ -298,11 +299,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         if (params) {
           const { cursor } = params;
           const cursorIndex = tools.findIndex((p) =>
-            textToSlug(p.name) === textToSlug(cursor)
+            String(getStringUid(p.name)) === cursor
           );
 
           if (cursorIndex !== -1) {
-            tools.splice(0, cursorIndex);
+            tools.splice(cursorIndex, cursorIndex + 100);
           }
         }
 
@@ -370,11 +371,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         if (params) {
           const { cursor } = params;
           const cursorIndex = resources.findIndex((p) =>
-            textToSlug(p.name) === textToSlug(cursor)
+            String(getStringUid(p.name)) === cursor
           );
 
           if (cursorIndex !== -1) {
-            resources.splice(0, cursorIndex);
+            resources.splice(cursorIndex, cursorIndex + 100);
           }
         }
 

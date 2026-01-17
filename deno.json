@@ -3,6 +3,7 @@
     "dev": "deno run --watch -A --env-file main.ts"
   },
   "imports": {
+    "@online/get-string-uid": "jsr:@online/get-string-uid@^1.0.1",
     "@online/is": "jsr:@online/is@^0.0.6",
     "@std/assert": "jsr:@std/assert@1"
   }
