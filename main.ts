@@ -4,28 +4,37 @@ import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
 import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
-import { errorResponse, loggingNotification, progressNotification, promptsListChangedNotification, resourcesListChangedNotification, resourcesUpdatedNotification, successResponse, toolsListChangedNotification } from "./src/generators/mod.ts";
+import {
+  errorResponse,
+  loggingNotification,
+  progressNotification,
+  promptsListChangedNotification,
+  resourcesListChangedNotification,
+  resourcesUpdatedNotification,
+  successResponse,
+  toolsListChangedNotification,
+} from "./src/generators/mod.ts";
 import type {
   ICapabilities,
   IClientMinimalRequestStructure,
-  IInitializeResponse,
-  IPingResponse,
-  IPrompt,
-  IPromptsListResponse,
+  ICompletionCompleteResponse,
   IContextModel,
   IContextModelOptions,
   IGenericRequest,
-  IRequestParamsMetadata,
-  IToolsListResponse,
+  IInitializeResponse,
+  ILoggingSetLevelResponse,
+  ILogOptions,
+  IPingResponse,
+  IPrompt,
   IPromptsGetResponse,
-  ICompletionCompleteResponse,
-  IToolsCallResponse,
+  IPromptsListResponse,
+  IRequestParamsMetadata,
   IResourcesListResponse,
   IResourcesReadResponse,
-  ILogOptions,
+  IResourcesSubscribeResponse,
+  IToolsCallResponse,
+  IToolsListResponse,
   LogFunction,
-  ILoggingSetLevelResponse,
-  IResourcesSubscribeResponse
 } from "./src/interfaces/mod.ts";
 import { StdioTransport } from "./src/transports/mod.ts";
 import type { IMessageHandlerClass, RequestId } from "./src/types/mod.ts";
@@ -58,20 +67,37 @@ function writeLog(line: string) {
   );
 }
 
-const LOG_LEVELS: LogLevel[] = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.NOTICE, LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL, LogLevel.ALERT, LogLevel.EMERGENCY];
+const LOG_LEVELS: LogLevel[] = [
+  LogLevel.DEBUG,
+  LogLevel.INFO,
+  LogLevel.NOTICE,
+  LogLevel.WARNING,
+  LogLevel.ERROR,
+  LogLevel.CRITICAL,
+  LogLevel.ALERT,
+  LogLevel.EMERGENCY,
+];
 const DEFAULT_PROTOCOL_VERSION = "2025-11-25" as const;
 const DEFAULT_CAPABILITIES: ICapabilities = {
   completions: { listChanged: false },
   prompts: { listChanged: true },
   resources: { listChanged: true, subscribe: true },
   tools: { listChanged: true },
-  sampling: {},
   roots: { listChanged: false },
-  logging: {}
+  sampling: {},
+  logging: {},
 } as const;
 
 export interface IEasyMCPConfig {
   timeout: number;
+  server: Partial<{
+    sendToolsListChangedNotification: boolean;
+    sendPromptsListChangedNotification: boolean;
+    sendResourcesListChangedNotification: boolean;
+    sendResourcesUpdatedNotification: boolean;
+    allowClientSubscribeToIndividualResourceUpdate: boolean;
+    sendLogs: boolean;
+  }>;
 }
 
 export class EasyMCPServer implements IMessageHandlerClass {
@@ -85,7 +111,30 @@ export class EasyMCPServer implements IMessageHandlerClass {
     private readonly transport: Transport,
     private readonly contextModel: IContextModel,
     private readonly config?: Partial<IEasyMCPConfig>,
-  ) { }
+  ) {
+    Object.assign(this, {
+      capabilities: {
+        completions: { listChanged: false },
+        prompts: {
+          listChanged: config?.server?.sendPromptsListChangedNotification ??
+            true,
+        },
+        resources: {
+          listChanged: config?.server?.sendResourcesListChangedNotification ??
+            true,
+          subscribe:
+            config?.server?.allowClientSubscribeToIndividualResourceUpdate ??
+            true,
+        },
+        tools: {
+          listChanged: config?.server?.sendToolsListChangedNotification ?? true,
+        },
+        roots: { listChanged: false },
+        sampling: {},
+        logging: (config?.server?.sendLogs ?? true) ? {} : void 0,
+      } satisfies ICapabilities,
+    });
+  }
 
   // A wrapper to set the `AbortController` on every `ContextModel` event.
   async messageHandler(message: object) {
@@ -96,7 +145,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
     writeLog("Before SetTimeout...");
 
     setTimeout(
-      () => { abortController.abort(); },
+      () => {
+        abortController.abort();
+      },
       this.config?.timeout || 10000,
     );
 
@@ -115,7 +166,8 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
     writeLog("Executing messageHandler...");
 
-    const isCancellableRequest = isGenericRequest(message) && !isInitializeRequest(message);
+    const isCancellableRequest = isGenericRequest(message) &&
+      !isInitializeRequest(message);
 
     try {
       if (isCancellableRequest) {
@@ -128,7 +180,6 @@ export class EasyMCPServer implements IMessageHandlerClass {
       writeLog("Error message: " + JSON.stringify((e as Error).message));
 
       if (e instanceof RequestException) {
-
         writeLog("possibleId: " + possibleId);
 
         if (isUndefined(possibleId)) {
@@ -152,11 +203,20 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
   private loggerFactory(logLevel: LogLevel) {
     return (message: string, options?: Partial<ILogOptions>) => {
-      if (isUndefined(this.logLevel) || !this.capabilities.logging || LOG_LEVELS.indexOf(logLevel) > LOG_LEVELS.indexOf(this.logLevel)) {
+      if (
+        isUndefined(this.logLevel) || !this.capabilities.logging ||
+        LOG_LEVELS.indexOf(logLevel) > LOG_LEVELS.indexOf(this.logLevel)
+      ) {
         return;
       }
 
-      this.transport.send(loggingNotification(logLevel, { message, details: options?.details }, options?.logger));
+      this.transport.send(
+        loggingNotification(
+          logLevel,
+          { message, details: options?.details },
+          options?.logger,
+        ),
+      );
     };
   }
 
@@ -167,7 +227,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
     const contextOptions: IContextModelOptions = {
       abortController,
       progress: async (value: number, total?: number) => {
-        const progressToken = ((message as IGenericRequest).params as IRequestParamsMetadata)._meta?.progressToken;
+        const progressToken =
+          ((message as IGenericRequest).params as IRequestParamsMetadata)._meta
+            ?.progressToken;
 
         crashIfNot(value >= 0 && value <= 1, {
           code: INVALID_PARAMS,
@@ -185,14 +247,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
           return;
         }
 
-        await this.transport.send(progressNotification(progressToken, value, total));
+        await this.transport.send(
+          progressNotification(progressToken, value, total),
+        );
       },
       log: Object.fromEntries(
         Object
           .values(LogLevel)
           .map(
-            (level) => [level, this.loggerFactory(level)]
-          )
+            (level) => [level, this.loggerFactory(level)],
+          ),
       ) as Record<LogLevel, LogFunction>,
       notify: {
         promptsListChanged: () => {
@@ -203,7 +267,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
           this.transport.send(promptsListChangedNotification());
         },
         resourceUpdated: (uri: string) => {
-          if (!this.capabilities.resources.subscribe || !this.resourceSubscriptions.has(uri)) {
+          if (
+            !this.capabilities.resources.subscribe ||
+            !this.resourceSubscriptions.has(uri)
+          ) {
             return;
           }
 
@@ -223,7 +290,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
           this.transport.send(toolsListChangedNotification());
         },
-      }
+      },
     };
 
     writeLog("Message handler of: " + JSON.stringify(message));
@@ -240,7 +307,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           data: {
             supported: [DEFAULT_PROTOCOL_VERSION],
             requested: params.protocolVersion,
-          }
+          },
         });
 
         writeLog("Supported protocol");
@@ -249,20 +316,23 @@ export class EasyMCPServer implements IMessageHandlerClass {
           (await this.contextModel.onListCapabilities?.(contextOptions)) ??
           DEFAULT_CAPABILITIES;
 
-        const serverInfo =
-          await this.contextModel.onListInformation(contextOptions);
+        const serverInfo = await this.contextModel.onListInformation(
+          contextOptions,
+        );
 
         writeLog("Responsing...");
 
         this.setCapabilities(capabilities);
-        await this.transport.send(successResponse<IInitializeResponse["result"]>(
-          id,
-          {
-            protocolVersion: DEFAULT_PROTOCOL_VERSION,
-            capabilities,
-            serverInfo,
-          },
-        ));
+        await this.transport.send(
+          successResponse<IInitializeResponse["result"]>(
+            id,
+            {
+              protocolVersion: DEFAULT_PROTOCOL_VERSION,
+              capabilities,
+              serverInfo,
+            },
+          ),
+        );
         break;
       }
       case isInitializedNotification(message): {
@@ -276,7 +346,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       case isPingRequest(message): {
-        await this.transport.send(successResponse<IPingResponse["result"]>(message.id, {}));
+        await this.transport.send(
+          successResponse<IPingResponse["result"]>(message.id, {}),
+        );
         break;
       }
       case isPromptsListRequest(message): {
@@ -296,7 +368,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.send(successResponse<IPromptsListResponse["result"]>(id, { prompts }));
+        await this.transport.send(
+          successResponse<IPromptsListResponse["result"]>(id, { prompts }),
+        );
         break;
       }
       case isPromptsGetRequest(message): {
@@ -323,7 +397,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No prompt messages",
         });
 
-        await this.transport.send(successResponse<IPromptsGetResponse["result"]>(id, promptResponse));
+        await this.transport.send(
+          successResponse<IPromptsGetResponse["result"]>(id, promptResponse),
+        );
         break;
       }
       case isToolsListRequest(message): {
@@ -343,7 +419,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.send(successResponse<IToolsListResponse["result"]>(id, { tools }));
+        await this.transport.send(
+          successResponse<IToolsListResponse["result"]>(id, { tools }),
+        );
         break;
       }
       case isToolsCallRequest(message): {
@@ -353,7 +431,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No tools" });
 
-        const tool = tools.find((p) => textToSlug(p.name) === textToSlug(toolName));
+        const tool = tools.find((p) =>
+          textToSlug(p.name) === textToSlug(toolName)
+        );
 
         crashIfNot(tool, { code: INVALID_PARAMS, message: "No tool" });
 
@@ -368,26 +448,32 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No tool messages",
         });
 
-        await this.transport.send(successResponse<IToolsCallResponse["result"]>(id, toolResponse));
+        await this.transport.send(
+          successResponse<IToolsCallResponse["result"]>(id, toolResponse),
+        );
         break;
       }
       case isCompletionCompleteRequest(message): {
         const { id, params } = message;
         const { ref, argument } = params;
         const completion = await this.contextModel.onGetCompletion?.(
-          ref.type === "ref/prompt" ? ContextModelEntityType.PROMPT : ContextModelEntityType.RESOURCE,
+          ref.type === "ref/prompt"
+            ? ContextModelEntityType.PROMPT
+            : ContextModelEntityType.RESOURCE,
           argument,
           contextOptions,
         );
 
         if (isUndefined(completion)) {
-          return this.transport.send(successResponse<ICompletionCompleteResponse["result"]>(id, {
-            completion: {
-              values: [],
-              hasMore: false,
-              total: 0
-            }
-          }));
+          return this.transport.send(
+            successResponse<ICompletionCompleteResponse["result"]>(id, {
+              completion: {
+                values: [],
+                hasMore: false,
+                total: 0,
+              },
+            }),
+          );
         }
 
         completion.values = completion.values
@@ -395,14 +481,23 @@ export class EasyMCPServer implements IMessageHandlerClass {
           .splice(0, 100);
         completion.total = completion.values.length;
 
-        await this.transport.send(successResponse<ICompletionCompleteResponse["result"]>(id, { completion }));
+        await this.transport.send(
+          successResponse<ICompletionCompleteResponse["result"]>(id, {
+            completion,
+          }),
+        );
         break;
       }
       case isResourcesListRequest(message): {
         const { id, params } = message;
-        const resources = await this.contextModel.onListResources?.(contextOptions);
+        const resources = await this.contextModel.onListResources?.(
+          contextOptions,
+        );
 
-        crashIfNot(resources, { code: INTERNAL_ERROR, message: "No resources" });
+        crashIfNot(resources, {
+          code: INTERNAL_ERROR,
+          message: "No resources",
+        });
 
         if (params) {
           const { cursor } = params;
@@ -415,7 +510,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.send(successResponse<IResourcesListResponse["result"]>(id, { resources }));
+        await this.transport.send(
+          successResponse<IResourcesListResponse["result"]>(id, { resources }),
+        );
         break;
       }
       case isResourcesReadRequest(message): {
@@ -426,9 +523,17 @@ export class EasyMCPServer implements IMessageHandlerClass {
           contextOptions,
         );
 
-        crashIfNot(resource, { code: INVALID_PARAMS, message: "No resource", data: { uri } });
+        crashIfNot(resource, {
+          code: INVALID_PARAMS,
+          message: "No resource",
+          data: { uri },
+        });
 
-        await this.transport.send(successResponse<IResourcesReadResponse["result"]>(id, { contents: resource }));
+        await this.transport.send(
+          successResponse<IResourcesReadResponse["result"]>(id, {
+            contents: resource,
+          }),
+        );
         break;
       }
       case isLoggingSetLevelRequest(message): {
@@ -436,11 +541,13 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         crashIfNot(Object.values(LogLevel).includes(params.level), {
           message: "Invalid log level",
-          code: INVALID_PARAMS
+          code: INVALID_PARAMS,
         });
 
         this.setLogLevel(params.level);
-        await this.transport.send(successResponse<ILoggingSetLevelResponse["result"]>(id, {}));
+        await this.transport.send(
+          successResponse<ILoggingSetLevelResponse["result"]>(id, {}),
+        );
         break;
       }
 
@@ -449,7 +556,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { uri } = params;
 
         this.registerResourceSubscription(uri);
-        await this.transport.send(successResponse<IResourcesSubscribeResponse["result"]>(id, {}));
+        await this.transport.send(
+          successResponse<IResourcesSubscribeResponse["result"]>(id, {}),
+        );
         break;
       }
       default: {
@@ -550,14 +659,16 @@ class CustomContext implements IContextModel {
             text: `Hello, ${name}! Welcome to the EasyMCP mock environment.`,
           },
         }],
-        description: ""
+        description: "",
       };
     }
 
     return { messages: [], description: "" };
   }
 
-  onGetCompletion(): Promise<ICompletionCompleteResponse["result"]["completion"]> {
+  onGetCompletion(): Promise<
+    ICompletionCompleteResponse["result"]["completion"]
+  > {
     throw new Error("Not implemented");
   }
 }

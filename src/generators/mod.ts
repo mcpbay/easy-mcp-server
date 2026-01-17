@@ -24,7 +24,7 @@ export function resourcesUpdatedNotification(uri: string) {
   return {
     jsonrpc: "2.0",
     method: ProtocolNotification.RESOURCES_UPDATED,
-    params: { uri }
+    params: { uri },
   };
 }
 
@@ -35,14 +35,18 @@ export function toolsListChangedNotification() {
   };
 }
 
-export function loggingNotification(logLevel: LogLevel, data: unknown, logger?: string) {
+export function loggingNotification(
+  logLevel: LogLevel,
+  data: unknown,
+  logger?: string,
+) {
   return {
     jsonrpc: "2.0",
     method: ProtocolNotification.MESSAGE,
     params: {
       level: logLevel,
       logger,
-      data
+      data,
     },
   };
 }
@@ -50,7 +54,7 @@ export function loggingNotification(logLevel: LogLevel, data: unknown, logger?: 
 export function progressNotification(
   progressToken: RequestId,
   value: number,
-  total?: number
+  total?: number,
 ): IProgressNotification {
   return {
     jsonrpc: "2.0",

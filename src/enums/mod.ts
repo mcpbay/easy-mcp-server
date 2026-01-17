@@ -42,7 +42,7 @@ export enum ProtocolMessage {
   /**
    * https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions
    */
-  RESOURCES_SUBSCRIBE = "resources/subscribe"
+  RESOURCES_SUBSCRIBE = "resources/subscribe",
 }
 
 export enum ProtocolNotification {
@@ -56,7 +56,7 @@ export enum ProtocolNotification {
    */
   MESSAGE = "notifications/message",
   RESOURCES_LIST_CHANGED = "notifications/resources/list_changed",
-  RESOURCES_UPDATED = "notifications/resources/updated"
+  RESOURCES_UPDATED = "notifications/resources/updated",
 }
 
 /**
@@ -70,7 +70,7 @@ export enum LogLevel {
   ERROR = "error",
   CRITICAL = "critical",
   ALERT = "alert",
-  EMERGENCY = "emergency"
+  EMERGENCY = "emergency",
 }
 
 export enum ContextModelEntityType {

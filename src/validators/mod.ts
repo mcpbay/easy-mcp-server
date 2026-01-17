@@ -1,6 +1,24 @@
 import { isPlainObject } from "@online/is";
 import { ProtocolMessage, ProtocolNotification } from "../enums/mod.ts";
-import type { IResourcesSubscribeRequest, ICancelledNotification, IClientMinimalRequestStructure, IGenericNotification, IGenericRequest, IInitializedNotification, IInitializeRequest, IPingRequest, IProgressNotification, IPromptsGetRequest, IPromptsListRequest, IToolsCallRequest, IToolsListRequest, ICompletionCompleteRequest, IResourcesListRequest, IResourcesReadRequest, ILoggingSetLevelRequest } from "../interfaces/mod.ts";
+import type {
+  ICancelledNotification,
+  IClientMinimalRequestStructure,
+  ICompletionCompleteRequest,
+  IGenericNotification,
+  IGenericRequest,
+  IInitializedNotification,
+  IInitializeRequest,
+  ILoggingSetLevelRequest,
+  IPingRequest,
+  IProgressNotification,
+  IPromptsGetRequest,
+  IPromptsListRequest,
+  IResourcesListRequest,
+  IResourcesReadRequest,
+  IResourcesSubscribeRequest,
+  IToolsCallRequest,
+  IToolsListRequest,
+} from "../interfaces/mod.ts";
 
 export function isJSONRpc(
   value: unknown,

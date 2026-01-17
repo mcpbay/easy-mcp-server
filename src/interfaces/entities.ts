@@ -4,9 +4,9 @@
 export interface IPromptMessage {
   role: "user" | "assistant";
   content:
-  | IPromptMessageTextContent
-  | IPromptMessageImageContent
-  | IPromptMessageResourceContent;
+    | IPromptMessageTextContent
+    | IPromptMessageImageContent
+    | IPromptMessageResourceContent;
 }
 
 /**
@@ -114,9 +114,9 @@ export interface ICapabilities {
   completions: {
     listChanged: boolean;
   };
-  sampling: {};
   roots: {
     listChanged: boolean;
   };
-  logging: {};
+  sampling?: {};
+  logging?: {};
 }

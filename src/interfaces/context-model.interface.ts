@@ -1,7 +1,19 @@
 import { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
-import { ICapabilities, IPrompt, IPromptMessage, IPromptMessageResourceContent, IResourceContent, ITool } from "./entities.ts";
+import {
+  ICapabilities,
+  IPrompt,
+  IPromptMessage,
+  IPromptMessageResourceContent,
+  IResourceContent,
+  ITool,
+} from "./entities.ts";
 import { ICompletionCompleteRequest, IInitializeRequest } from "./requests.ts";
-import { ICompletionCompleteResponse, IPromptsGetResponse, IResourcesListResponse, IToolsCallResponse } from "./responses.ts";
+import {
+  ICompletionCompleteResponse,
+  IPromptsGetResponse,
+  IResourcesListResponse,
+  IToolsCallResponse,
+} from "./responses.ts";
 
 export interface ILogOptions {
   /**
@@ -33,7 +45,10 @@ export interface INotifiy {
   resourceUpdated(uri: string): void;
 }
 
-export type LogFunction = (message: string, options?: Partial<ILogOptions>) => void;
+export type LogFunction = (
+  message: string,
+  options?: Partial<ILogOptions>,
+) => void;
 
 export interface IContextModelOptions {
   /**
@@ -55,7 +70,7 @@ export interface IContextModelOptions {
 
 export interface IContextModel {
   onListInformation(
-    options: IContextModelOptions
+    options: IContextModelOptions,
   ): Promise<IInitializeRequest["params"]["clientInfo"]>;
 
   onListCapabilities?(options: IContextModelOptions): Promise<ICapabilities>;
@@ -85,7 +100,11 @@ export interface IContextModel {
     options: IContextModelOptions,
   ): Promise<IResourceContent[]>;
 
-  onGetCompletion?(entityType: ContextModelEntityType, args: ICompletionCompleteRequest["params"]["argument"], options: IContextModelOptions): Promise<ICompletionCompleteResponse["result"]["completion"]>;
+  onGetCompletion?(
+    entityType: ContextModelEntityType,
+    args: ICompletionCompleteRequest["params"]["argument"],
+    options: IContextModelOptions,
+  ): Promise<ICompletionCompleteResponse["result"]["completion"]>;
 
   onConnect?(options: IContextModelOptions): Promise<void>;
 }

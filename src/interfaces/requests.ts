@@ -1,5 +1,8 @@
 import { LogLevel } from "../enums/mod.ts";
-import type { IClientMinimalRequestStructure, IRequestParamsMetadata } from "./common.ts";
+import type {
+  IClientMinimalRequestStructure,
+  IRequestParamsMetadata,
+} from "./common.ts";
 import { ICapabilities } from "./entities.ts";
 
 /**
@@ -28,7 +31,7 @@ export interface ICompletionCompleteRequest
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 /**
@@ -66,7 +69,7 @@ export interface IPingRequest extends IClientMinimalRequestStructure {
 
 export interface IToolsListRequest extends IClientMinimalRequestStructure {
   method: "tools/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IToolsCallRequest extends IClientMinimalRequestStructure {
@@ -79,7 +82,7 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
 
 export interface IResourcesListRequest extends IClientMinimalRequestStructure {
   method: "resources/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IResourcesReadRequest extends IClientMinimalRequestStructure {
@@ -89,14 +92,16 @@ export interface IResourcesReadRequest extends IClientMinimalRequestStructure {
   } & IRequestParamsMetadata;
 }
 
-export interface ILoggingSetLevelRequest extends IClientMinimalRequestStructure {
+export interface ILoggingSetLevelRequest
+  extends IClientMinimalRequestStructure {
   method: "logging/setLevel";
   params: {
     level: LogLevel;
   } & IRequestParamsMetadata;
 }
 
-export interface IResourcesSubscribeRequest extends IClientMinimalRequestStructure {
+export interface IResourcesSubscribeRequest
+  extends IClientMinimalRequestStructure {
   method: "resources/subscribe";
   params: {
     uri: string;
