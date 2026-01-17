@@ -4,26 +4,28 @@ import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
 import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
-import { errorResponse, loggingNotification, progressNotification, successResponse } from "./src/generators/mod.ts";
-import {
-  type ICapabilities,
-  type IClientMinimalRequestStructure,
-  type IInitializeResponse,
-  type IPingResponse,
-  type IPrompt, type IPromptsListResponse,
-  type IContextModel,
-  type IContextModelOptions,
-  type IGenericRequest,
-  type IRequestParamsMetadata,
-  type IToolsListResponse,
-  type IPromptsGetResponse,
-  type ICompletionCompleteResponse,
-  ContextModelEntityType,
+import { errorResponse, loggingNotification, progressNotification, promptsListChangedNotification, resourcesListChangedNotification, resourcesUpdatedNotification, successResponse, toolsListChangedNotification } from "./src/generators/mod.ts";
+import type {
+  ICapabilities,
+  IClientMinimalRequestStructure,
+  IInitializeResponse,
+  IPingResponse,
+  IPrompt,
+  IPromptsListResponse,
+  IContextModel,
+  IContextModelOptions,
+  IGenericRequest,
+  IRequestParamsMetadata,
+  IToolsListResponse,
+  IPromptsGetResponse,
+  ICompletionCompleteResponse,
   IToolsCallResponse,
   IResourcesListResponse,
   IResourcesReadResponse,
   ILogOptions,
-  LogFunction
+  LogFunction,
+  ILoggingSetLevelResponse,
+  IResourcesSubscribeResponse
 } from "./src/interfaces/mod.ts";
 import { StdioTransport } from "./src/transports/mod.ts";
 import type { IMessageHandlerClass, RequestId } from "./src/types/mod.ts";
@@ -40,10 +42,11 @@ import {
   isPromptsListRequest,
   isResourcesListRequest,
   isResourcesReadRequest,
+  isResourcesSubscribeRequest,
   isToolsCallRequest,
   isToolsListRequest,
 } from "./src/validators/mod.ts";
-import { LogLevel } from "./src/enums/mod.ts";
+import { ContextModelEntityType, LogLevel } from "./src/enums/mod.ts";
 
 function writeLog(line: string) {
   const todayDateString = new Date().toISOString().split("T")[0];
@@ -59,11 +62,12 @@ const LOG_LEVELS: LogLevel[] = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.NOTICE, 
 const DEFAULT_PROTOCOL_VERSION = "2025-11-25" as const;
 const DEFAULT_CAPABILITIES: ICapabilities = {
   completions: { listChanged: false },
-  prompts: { listChanged: false },
-  resources: { listChanged: false },
-  tools: { listChanged: false },
+  prompts: { listChanged: true },
+  resources: { listChanged: true, subscribe: true },
+  tools: { listChanged: true },
   sampling: {},
   roots: { listChanged: false },
+  logging: {}
 } as const;
 
 export interface IEasyMCPConfig {
@@ -73,6 +77,9 @@ export interface IEasyMCPConfig {
 export class EasyMCPServer implements IMessageHandlerClass {
   private readonly jobs: Map<RequestId, AbortController> = new Map();
   private logLevel: LogLevel | undefined;
+  private readonly resourceSubscriptions = new Set<string>();
+  private readonly capabilities: ICapabilities = DEFAULT_CAPABILITIES;
+  private readonly isCommuncationInitialized = false;
 
   constructor(
     private readonly transport: Transport,
@@ -100,7 +107,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         return;
       }
 
-      this.transport.response(errorResponse(possibleId, {
+      this.transport.send(errorResponse(possibleId, {
         code: INTERNAL_ERROR,
         message: "Request timed out",
       }));
@@ -130,7 +137,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         writeLog("Error data: " + JSON.stringify(e.data));
 
-        this.transport.response(errorResponse(possibleId, {
+        this.transport.send(errorResponse(possibleId, {
           code: e.status,
           message: e.message,
           data: e.data,
@@ -145,11 +152,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
   private loggerFactory(logLevel: LogLevel) {
     return (message: string, options?: Partial<ILogOptions>) => {
-      if (isUndefined(this.logLevel) || LOG_LEVELS.indexOf(logLevel) > LOG_LEVELS.indexOf(this.logLevel)) {
+      if (isUndefined(this.logLevel) || !this.capabilities.logging || LOG_LEVELS.indexOf(logLevel) > LOG_LEVELS.indexOf(this.logLevel)) {
         return;
       }
 
-      this.transport.notify(loggingNotification(logLevel, { message, details: options?.details }, options?.logger));
+      this.transport.send(loggingNotification(logLevel, { message, details: options?.details }, options?.logger));
     };
   }
 
@@ -178,7 +185,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           return;
         }
 
-        await this.transport.notify(progressNotification(progressToken, value, total));
+        await this.transport.send(progressNotification(progressToken, value, total));
       },
       log: Object.fromEntries(
         Object
@@ -187,6 +194,36 @@ export class EasyMCPServer implements IMessageHandlerClass {
             (level) => [level, this.loggerFactory(level)]
           )
       ) as Record<LogLevel, LogFunction>,
+      notify: {
+        promptsListChanged: () => {
+          if (!this.capabilities.prompts.listChanged) {
+            return;
+          }
+
+          this.transport.send(promptsListChangedNotification());
+        },
+        resourceUpdated: (uri: string) => {
+          if (!this.capabilities.resources.subscribe || !this.resourceSubscriptions.has(uri)) {
+            return;
+          }
+
+          this.transport.send(resourcesUpdatedNotification(uri));
+        },
+        resourcesListChanged: () => {
+          if (!this.capabilities.resources.listChanged) {
+            return;
+          }
+
+          this.transport.send(resourcesListChangedNotification());
+        },
+        toolsListChanged: () => {
+          if (!this.capabilities.tools.listChanged) {
+            return;
+          }
+
+          this.transport.send(toolsListChangedNotification());
+        },
+      }
     };
 
     writeLog("Message handler of: " + JSON.stringify(message));
@@ -213,13 +250,12 @@ export class EasyMCPServer implements IMessageHandlerClass {
           DEFAULT_CAPABILITIES;
 
         const serverInfo =
-          await this.contextModel.onListInformation(
-            contextOptions,
-          );
+          await this.contextModel.onListInformation(contextOptions);
 
         writeLog("Responsing...");
 
-        await this.transport.response(successResponse<IInitializeResponse["result"]>(
+        this.setCapabilities(capabilities);
+        await this.transport.send(successResponse<IInitializeResponse["result"]>(
           id,
           {
             protocolVersion: DEFAULT_PROTOCOL_VERSION,
@@ -227,10 +263,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
             serverInfo,
           },
         ));
-
         break;
       }
       case isInitializedNotification(message): {
+        this.initializeCommunication();
         await this.contextModel.onConnect?.(contextOptions);
         break;
       }
@@ -240,7 +276,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       case isPingRequest(message): {
-        await this.transport.response(successResponse<IPingResponse["result"]>(message.id, {}));
+        await this.transport.send(successResponse<IPingResponse["result"]>(message.id, {}));
         break;
       }
       case isPromptsListRequest(message): {
@@ -260,7 +296,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.response(successResponse<IPromptsListResponse["result"]>(id, { prompts }));
+        await this.transport.send(successResponse<IPromptsListResponse["result"]>(id, { prompts }));
         break;
       }
       case isPromptsGetRequest(message): {
@@ -287,7 +323,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No prompt messages",
         });
 
-        await this.transport.response(successResponse<IPromptsGetResponse["result"]>(id, promptResponse));
+        await this.transport.send(successResponse<IPromptsGetResponse["result"]>(id, promptResponse));
         break;
       }
       case isToolsListRequest(message): {
@@ -307,7 +343,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.response(successResponse<IToolsListResponse["result"]>(id, { tools }));
+        await this.transport.send(successResponse<IToolsListResponse["result"]>(id, { tools }));
         break;
       }
       case isToolsCallRequest(message): {
@@ -332,7 +368,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No tool messages",
         });
 
-        await this.transport.response(successResponse<IToolsCallResponse["result"]>(id, toolResponse));
+        await this.transport.send(successResponse<IToolsCallResponse["result"]>(id, toolResponse));
         break;
       }
       case isCompletionCompleteRequest(message): {
@@ -345,7 +381,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         );
 
         if (isUndefined(completion)) {
-          return this.transport.response(successResponse<ICompletionCompleteResponse["result"]>(id, {
+          return this.transport.send(successResponse<ICompletionCompleteResponse["result"]>(id, {
             completion: {
               values: [],
               hasMore: false,
@@ -359,7 +395,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           .splice(0, 100);
         completion.total = completion.values.length;
 
-        await this.transport.response(successResponse<ICompletionCompleteResponse["result"]>(id, { completion }));
+        await this.transport.send(successResponse<ICompletionCompleteResponse["result"]>(id, { completion }));
         break;
       }
       case isResourcesListRequest(message): {
@@ -379,7 +415,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
-        await this.transport.response(successResponse<IResourcesListResponse["result"]>(id, { resources }));
+        await this.transport.send(successResponse<IResourcesListResponse["result"]>(id, { resources }));
         break;
       }
       case isResourcesReadRequest(message): {
@@ -392,11 +428,28 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         crashIfNot(resource, { code: INVALID_PARAMS, message: "No resource", data: { uri } });
 
-        await this.transport.response(successResponse<IResourcesReadResponse["result"]>(id, { contents: resource }));
+        await this.transport.send(successResponse<IResourcesReadResponse["result"]>(id, { contents: resource }));
         break;
       }
       case isLoggingSetLevelRequest(message): {
+        const { id, params } = message;
 
+        crashIfNot(Object.values(LogLevel).includes(params.level), {
+          message: "Invalid log level",
+          code: INVALID_PARAMS
+        });
+
+        this.setLogLevel(params.level);
+        await this.transport.send(successResponse<ILoggingSetLevelResponse["result"]>(id, {}));
+        break;
+      }
+
+      case isResourcesSubscribeRequest(message): {
+        const { id, params } = message;
+        const { uri } = params;
+
+        this.registerResourceSubscription(uri);
+        await this.transport.send(successResponse<IResourcesSubscribeResponse["result"]>(id, {}));
         break;
       }
       default: {
@@ -429,6 +482,22 @@ export class EasyMCPServer implements IMessageHandlerClass {
   private cancelRequestJob(id: RequestId) {
     this.jobs.get(id)?.abort();
     this.jobs.delete(id);
+  }
+
+  private registerResourceSubscription(uri: string) {
+    this.resourceSubscriptions.add(uri);
+  }
+
+  private setLogLevel(logLevel: LogLevel) {
+    this.logLevel = logLevel;
+  }
+
+  private setCapabilities(capabilities: ICapabilities) {
+    Object.assign(this, { capabilities });
+  }
+
+  private initializeCommunication() {
+    Object.assign(this, { isCommuncationInitialized: true });
   }
 }
 

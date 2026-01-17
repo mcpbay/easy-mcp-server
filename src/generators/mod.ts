@@ -6,6 +6,35 @@ import type {
 } from "../interfaces/mod.ts";
 import type { RequestId } from "../types/mod.ts";
 
+export function promptsListChangedNotification() {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.PROMPTS_LIST_CHANGED,
+  };
+}
+
+export function resourcesListChangedNotification() {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.RESOURCES_LIST_CHANGED,
+  };
+}
+
+export function resourcesUpdatedNotification(uri: string) {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.RESOURCES_UPDATED,
+    params: { uri }
+  };
+}
+
+export function toolsListChangedNotification() {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.TOOLS_LIST_CHANGED,
+  };
+}
+
 export function loggingNotification(logLevel: LogLevel, data: unknown, logger?: string) {
   return {
     jsonrpc: "2.0",

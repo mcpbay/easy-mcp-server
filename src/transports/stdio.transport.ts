@@ -32,7 +32,7 @@ export class StdioTransport extends Transport {
     process.stdin.on("end", () => void this.onClose());
   }
 
-  async response(message: object): Promise<void> {
+  async send(message: object): Promise<void> {
     // Send response JSON followed by a newline character to stdout
     process.stdout.write(JSON.stringify(message) + "\n");
   }

@@ -71,3 +71,8 @@ export interface IResourcesListResponse extends IGenericProtocolResponse<{ resou
  * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
  */
 export interface IResourcesReadResponse extends IGenericProtocolResponse<{ contents: IResourceContent[]; }> { }
+
+
+export interface ILoggingSetLevelResponse extends IGenericProtocolResponse<{}> { }
+
+export interface IResourcesSubscribeResponse extends IGenericProtocolResponse<{}> { }

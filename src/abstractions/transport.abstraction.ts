@@ -10,12 +10,7 @@ export abstract class Transport {
    * Send a response to the client.
    * @param message The whole message to send to the client.
    */
-  public abstract response(message: object): Promise<void>;
-  /**
-   * Send a notification to the client.
-   * @param message The whole message to send to the client.
-   */
-  public abstract notify(message: object): Promise<void>;
+  public abstract send(message: object): Promise<void>;
   /**
    * Close the transport.
    */

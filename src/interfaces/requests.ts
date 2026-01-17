@@ -95,3 +95,10 @@ export interface ILoggingSetLevelRequest extends IClientMinimalRequestStructure 
     level: LogLevel;
   } & IRequestParamsMetadata;
 }
+
+export interface IResourcesSubscribeRequest extends IClientMinimalRequestStructure {
+  method: "resources/subscribe";
+  params: {
+    uri: string;
+  } & IRequestParamsMetadata;
+}

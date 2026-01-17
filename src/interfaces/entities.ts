@@ -118,4 +118,5 @@ export interface ICapabilities {
   roots: {
     listChanged: boolean;
   };
+  logging: {};
 }

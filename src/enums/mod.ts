@@ -38,7 +38,11 @@ export enum ProtocolMessage {
   /**
    * https://modelcontextprotocol.io/specification/2024-11-05/server/utilities/logging
    */
-  LOGGING_SET_LEVEL = "logging/setLevel"
+  LOGGING_SET_LEVEL = "logging/setLevel",
+  /**
+   * https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions
+   */
+  RESOURCES_SUBSCRIBE = "resources/subscribe"
 }
 
 export enum ProtocolNotification {
@@ -50,7 +54,9 @@ export enum ProtocolNotification {
   /**
    * https://modelcontextprotocol.io/specification/2024-11-05/server/utilities/logging#log-message-notifications
    */
-  MESSAGE = "notifications/message"
+  MESSAGE = "notifications/message",
+  RESOURCES_LIST_CHANGED = "notifications/resources/list_changed",
+  RESOURCES_UPDATED = "notifications/resources/updated"
 }
 
 /**
@@ -65,4 +71,10 @@ export enum LogLevel {
   CRITICAL = "critical",
   ALERT = "alert",
   EMERGENCY = "emergency"
+}
+
+export enum ContextModelEntityType {
+  PROMPT = "prompt",
+  TOOL = "tool",
+  RESOURCE = "resource",
 }

@@ -1,4 +1,4 @@
-import { LogLevel } from "../enums/mod.ts";
+import { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
 import { ICapabilities, IPrompt, IPromptMessage, IPromptMessageResourceContent, IResourceContent, ITool } from "./entities.ts";
 import { ICompletionCompleteRequest, IInitializeRequest } from "./requests.ts";
 import { ICompletionCompleteResponse, IPromptsGetResponse, IResourcesListResponse, IToolsCallResponse } from "./responses.ts";
@@ -12,6 +12,25 @@ export interface ILogOptions {
    * Additional details to include in the log.
    */
   details: Record<string, unknown>;
+}
+
+export interface INotifiy {
+  /**
+   * Notifies the client about a change in the prompts list.
+   */
+  promptsListChanged(): void;
+  /**
+   * Notifies the client about a change in the tools list.
+   */
+  toolsListChanged(): void;
+  /**
+   * Notifies the client about a change in the resources list.
+   */
+  resourcesListChanged(): void;
+  /**
+   * Notifies the client about a change in a specific resource.
+   */
+  resourceUpdated(uri: string): void;
 }
 
 export type LogFunction = (message: string, options?: Partial<ILogOptions>) => void;
@@ -31,12 +50,7 @@ export interface IContextModelOptions {
    */
   progress(value: number, total?: number): Promise<void>;
   log: Record<LogLevel, LogFunction>;
-}
-
-export enum ContextModelEntityType {
-  PROMPT = "prompt",
-  TOOL = "tool",
-  RESOURCE = "resource",
+  notify: INotifiy;
 }
 
 export interface IContextModel {
