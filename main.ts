@@ -3,15 +3,13 @@ import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
 import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
-import { errorResponse, progressNotification, successResponse } from "./src/generators/mod.ts";
+import { errorResponse, loggingNotification, progressNotification, successResponse } from "./src/generators/mod.ts";
 import {
   type ICapabilities,
   type IClientMinimalRequestStructure,
   type IInitializeResponse,
   type IPingResponse,
-  type IPrompt,
-  type IPromptMessage,
-  type IPromptsListResponse,
+  type IPrompt, type IPromptsListResponse,
   type IContextModel,
   type IContextModelOptions,
   type IGenericRequest,
@@ -20,7 +18,11 @@ import {
   type IPromptsGetResponse,
   type ICompletionCompleteResponse,
   ContextModelEntityType,
-  IToolsCallResponse
+  IToolsCallResponse,
+  IResourcesListResponse,
+  IResourcesReadResponse,
+  ILogOptions,
+  LogFunction
 } from "./src/interfaces/mod.ts";
 import { StdioTransport } from "./src/transports/mod.ts";
 import type { IMessageHandlerClass, RequestId } from "./src/types/mod.ts";
@@ -31,12 +33,16 @@ import {
   isGenericRequest,
   isInitializedNotification,
   isInitializeRequest,
+  isLoggingSetLevelRequest,
   isPingRequest,
   isPromptsGetRequest,
   isPromptsListRequest,
+  isResourcesListRequest,
+  isResourcesReadRequest,
   isToolsCallRequest,
   isToolsListRequest,
 } from "./src/validators/mod.ts";
+import { LogLevel } from "./src/enums/mod.ts";
 
 function writeLog(line: string) {
   const todayDateString = new Date().toISOString().split("T")[0];
@@ -48,12 +54,15 @@ function writeLog(line: string) {
   );
 }
 
+const LOG_LEVELS: LogLevel[] = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.NOTICE, LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL, LogLevel.ALERT, LogLevel.EMERGENCY];
 const DEFAULT_PROTOCOL_VERSION = "2025-11-25" as const;
 const DEFAULT_CAPABILITIES: ICapabilities = {
   completions: { listChanged: false },
   prompts: { listChanged: false },
   resources: { listChanged: false },
   tools: { listChanged: false },
+  sampling: {},
+  roots: { listChanged: false },
 } as const;
 
 export interface IEasyMCPConfig {
@@ -62,6 +71,7 @@ export interface IEasyMCPConfig {
 
 export class EasyMCPServer implements IMessageHandlerClass {
   private readonly jobs: Map<RequestId, AbortController> = new Map();
+  private logLevel: LogLevel | undefined;
 
   constructor(
     private readonly transport: Transport,
@@ -132,6 +142,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
     }
   }
 
+  private loggerFactory(logLevel: LogLevel) {
+    return (message: string, options?: Partial<ILogOptions>) => {
+      if (isUndefined(this.logLevel) || LOG_LEVELS.indexOf(logLevel) > LOG_LEVELS.indexOf(this.logLevel)) {
+        return;
+      }
+
+      this.transport.notify(loggingNotification(logLevel, { message, details: options?.details }, options?.logger));
+    };
+  }
+
   private async internalMessageHandler(
     message: object,
     abortController: AbortController,
@@ -159,6 +179,13 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         await this.transport.notify(progressNotification(progressToken, value, total));
       },
+      log: Object.fromEntries(
+        Object
+          .values(LogLevel)
+          .map(
+            (level) => [level, this.loggerFactory(level)]
+          )
+      ) as Record<LogLevel, LogFunction>,
     };
 
     writeLog("Message handler of: " + JSON.stringify(message));
@@ -203,7 +230,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       case isInitializedNotification(message): {
-        this.contextModel.onConnect?.(contextOptions);
+        await this.contextModel.onConnect?.(contextOptions);
         break;
       }
       case isCancelledNotification(message): {
@@ -332,6 +359,43 @@ export class EasyMCPServer implements IMessageHandlerClass {
         completion.total = completion.values.length;
 
         await this.transport.response(successResponse<ICompletionCompleteResponse["result"]>(id, { completion }));
+        break;
+      }
+      case isResourcesListRequest(message): {
+        const { id, params } = message;
+        const resources = await this.contextModel.onListResources?.(contextOptions);
+
+        crashIfNot(resources, { code: INTERNAL_ERROR, message: "No resources" });
+
+        if (params) {
+          const { cursor } = params;
+          const cursorIndex = resources.findIndex((p) =>
+            textToSlug(p.name) === textToSlug(cursor)
+          );
+
+          if (cursorIndex !== -1) {
+            resources.splice(0, cursorIndex);
+          }
+        }
+
+        await this.transport.response(successResponse<IResourcesListResponse["result"]>(id, { resources }));
+        break;
+      }
+      case isResourcesReadRequest(message): {
+        const { id, params } = message;
+        const { uri } = params;
+        const resource = await this.contextModel.onReadResource?.(
+          uri,
+          contextOptions,
+        );
+
+        crashIfNot(resource, { code: INVALID_PARAMS, message: "No resource", data: { uri } });
+
+        await this.transport.response(successResponse<IResourcesReadResponse["result"]>(id, { contents: resource }));
+        break;
+      }
+      case isLoggingSetLevelRequest(message): {
+
         break;
       }
       default: {

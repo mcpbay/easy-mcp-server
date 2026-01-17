@@ -1,6 +1,6 @@
 import { isPlainObject } from "@online/is";
 import { ProtocolMessage, ProtocolNotification } from "../enums/mod.ts";
-import type { ICancelledNotification, IClientMinimalRequestStructure, IGenericNotification, IGenericRequest, IInitializedNotification, IInitializeRequest, IPingRequest, IProgressNotification, IPromptsGetRequest, IPromptsListRequest, IToolsCallRequest, IToolsListRequest, ICompletionCompleteRequest } from "../interfaces/mod.ts";
+import type { ICancelledNotification, IClientMinimalRequestStructure, IGenericNotification, IGenericRequest, IInitializedNotification, IInitializeRequest, IPingRequest, IProgressNotification, IPromptsGetRequest, IPromptsListRequest, IToolsCallRequest, IToolsListRequest, ICompletionCompleteRequest, IResourcesListRequest, IResourcesReadRequest, ILoggingSetLevelRequest } from "../interfaces/mod.ts";
 
 export function isJSONRpc(
   value: unknown,
@@ -101,5 +101,26 @@ export function isCompletionCompleteRequest(value: unknown) {
   return isSpecificRequest<ICompletionCompleteRequest>(
     value,
     ProtocolMessage.COMPLETION_COMPLETE,
+  );
+}
+
+export function isResourcesListRequest(value: unknown) {
+  return isSpecificRequest<IResourcesListRequest>(
+    value,
+    ProtocolMessage.RESOURCES_LIST,
+  );
+}
+
+export function isResourcesReadRequest(value: unknown) {
+  return isSpecificRequest<IResourcesReadRequest>(
+    value,
+    ProtocolMessage.RESOURCES_READ,
+  );
+}
+
+export function isLoggingSetLevelRequest(value: unknown) {
+  return isSpecificRequest<ILoggingSetLevelRequest>(
+    value,
+    ProtocolMessage.LOGGING_SET_LEVEL,
   );
 }

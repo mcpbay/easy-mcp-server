@@ -27,6 +27,18 @@ export enum ProtocolMessage {
    * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping
    */
   PING = "ping",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
+   */
+  RESOURCES_LIST = "resources/list",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
+   */
+  RESOURCES_READ = "resources/read",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/utilities/logging
+   */
+  LOGGING_SET_LEVEL = "logging/setLevel"
 }
 
 export enum ProtocolNotification {
@@ -34,5 +46,23 @@ export enum ProtocolNotification {
   CANCELLED = "notifications/cancelled",
   PROMPTS_LIST_CHANGED = "notifications/prompts/list_changed",
   PROGRESS = "notifications/progress",
-  TOOLS_LIST_CHANGED = "notifications/tools/list_changed"
+  TOOLS_LIST_CHANGED = "notifications/tools/list_changed",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/server/utilities/logging#log-message-notifications
+   */
+  MESSAGE = "notifications/message"
+}
+
+/**
+ * https://modelcontextprotocol.io/specification/2024-11-05/server/utilities/logging#log-levels
+ */
+export enum LogLevel {
+  DEBUG = "debug",
+  INFO = "info",
+  NOTICE = "notice",
+  WARNING = "warning",
+  ERROR = "error",
+  CRITICAL = "critical",
+  ALERT = "alert",
+  EMERGENCY = "emergency"
 }

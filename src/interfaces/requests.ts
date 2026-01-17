@@ -1,3 +1,4 @@
+import { LogLevel } from "../enums/mod.ts";
 import type { IClientMinimalRequestStructure, IRequestParamsMetadata } from "./common.ts";
 import { ICapabilities } from "./entities.ts";
 
@@ -73,5 +74,24 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
   params: {
     name: string;
     arguments: Record<string, unknown>;
+  } & IRequestParamsMetadata;
+}
+
+export interface IResourcesListRequest extends IClientMinimalRequestStructure {
+  method: "resources/list";
+  params?: { cursor: string; } & IRequestParamsMetadata;
+}
+
+export interface IResourcesReadRequest extends IClientMinimalRequestStructure {
+  method: "resources/read";
+  params: {
+    uri: string;
+  } & IRequestParamsMetadata;
+}
+
+export interface ILoggingSetLevelRequest extends IClientMinimalRequestStructure {
+  method: "logging/setLevel";
+  params: {
+    level: LogLevel;
   } & IRequestParamsMetadata;
 }

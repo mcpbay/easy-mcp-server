@@ -44,6 +44,29 @@ export interface IPromptArgument {
 }
 
 /**
+ * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
+ */
+export interface IResourceTextContent {
+  uri: string;
+  mimeType: "text/plain";
+  text: string;
+}
+
+/**
+ * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
+ */
+export interface IResourceFileContent {
+  uri: string;
+  mimeType: string;
+  /**
+   * Base64
+   */
+  blob: string;
+}
+
+export type IResourceContent = IResourceTextContent | IResourceFileContent;
+
+/**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/resources/
  */
 export interface IResource {
@@ -89,6 +112,10 @@ export interface ICapabilities {
     subscribe: boolean;
   }>;
   completions: {
+    listChanged: boolean;
+  };
+  sampling: {};
+  roots: {
     listChanged: boolean;
   };
 }

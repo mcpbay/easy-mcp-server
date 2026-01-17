@@ -1,6 +1,20 @@
-import { ICapabilities, IPrompt, IPromptMessage, ITool } from "./entities.ts";
+import { LogLevel } from "../enums/mod.ts";
+import { ICapabilities, IPrompt, IPromptMessage, IPromptMessageResourceContent, IResourceContent, ITool } from "./entities.ts";
 import { ICompletionCompleteRequest, IInitializeRequest } from "./requests.ts";
 import { ICompletionCompleteResponse, IPromptsGetResponse, IResourcesListResponse, IToolsCallResponse } from "./responses.ts";
+
+export interface ILogOptions {
+  /**
+   * Logger name, use it to identify the section is generating the log.
+   */
+  logger: string;
+  /**
+   * Additional details to include in the log.
+   */
+  details: Record<string, unknown>;
+}
+
+export type LogFunction = (message: string, options?: Partial<ILogOptions>) => void;
 
 export interface IContextModelOptions {
   /**
@@ -16,6 +30,7 @@ export interface IContextModelOptions {
    * @returns nothing
    */
   progress(value: number, total?: number): Promise<void>;
+  log: Record<LogLevel, LogFunction>;
 }
 
 export enum ContextModelEntityType {
@@ -49,7 +64,12 @@ export interface IContextModel {
 
   onListResources?(
     options: IContextModelOptions,
-  ): Promise<IResourcesListResponse["result"]>;
+  ): Promise<IResourcesListResponse["result"]["resources"]>;
+
+  onReadResource?(
+    resourceUri: string,
+    options: IContextModelOptions,
+  ): Promise<IResourceContent[]>;
 
   onGetCompletion?(entityType: ContextModelEntityType, args: ICompletionCompleteRequest["params"]["argument"], options: IContextModelOptions): Promise<ICompletionCompleteResponse["result"]["completion"]>;
 

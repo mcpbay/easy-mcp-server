@@ -1,3 +1,4 @@
+import { LogLevel } from "../enums/mod.ts";
 import { RequestId } from "../types/mod.ts";
 import type {
   IClientMinimalRequestStructure,
@@ -35,5 +36,17 @@ export interface IProgressNotification extends IGenericNotification {
     progressToken: RequestId;
     progress: number;
     total?: number;
+  };
+}
+
+export interface IMessageNotification extends IGenericNotification {
+  method: "notifications/message";
+  params: {
+    level: LogLevel;
+    logger?: string;
+    data: {
+      message: string;
+      details: unknown;
+    };
   };
 }

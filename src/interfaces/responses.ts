@@ -1,5 +1,5 @@
 import type { IGenericProtocolResponse } from "./common.ts";
-import type { ICapabilities, IPrompt, IPromptMessage, IResource, ITool } from "./entities.ts";
+import type { ICapabilities, IPrompt, IPromptMessage, IResource, IResourceContent, ITool } from "./entities.ts";
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
@@ -70,4 +70,4 @@ export interface IResourcesListResponse extends IGenericProtocolResponse<{ resou
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
  */
-export interface IResourcesReadResponse extends IGenericProtocolResponse<{ contents: { uri: string; mimeType: string; text: string; }; }> { }
+export interface IResourcesReadResponse extends IGenericProtocolResponse<{ contents: IResourceContent[]; }> { }

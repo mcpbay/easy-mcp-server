@@ -1,9 +1,22 @@
+import { LogLevel, ProtocolNotification } from "../enums/mod.ts";
 import type {
   IGenericProtocolResponse,
   IProgressNotification,
   IProtocolErrorResponse,
 } from "../interfaces/mod.ts";
 import type { RequestId } from "../types/mod.ts";
+
+export function loggingNotification(logLevel: LogLevel, data: unknown, logger?: string) {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.MESSAGE,
+    params: {
+      level: logLevel,
+      logger,
+      data
+    },
+  };
+}
 
 export function progressNotification(
   progressToken: RequestId,
@@ -12,7 +25,7 @@ export function progressNotification(
 ): IProgressNotification {
   return {
     jsonrpc: "2.0",
-    method: "notifications/progress",
+    method: ProtocolNotification.PROGRESS,
     params: {
       progressToken,
       progress: value,
