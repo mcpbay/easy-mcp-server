@@ -73,6 +73,10 @@ export interface IContextModel {
     options: IContextModelOptions,
   ): Promise<IInitializeRequest["params"]["clientInfo"]>;
 
+  /**
+   * Use this method to override the server capabilities.
+   * Do not use this if you don't know what you are doing.
+   */
   onListCapabilities?(options: IContextModelOptions): Promise<ICapabilities>;
 
   onListPrompts?(options: IContextModelOptions): Promise<IPrompt[]>;

@@ -22,6 +22,9 @@ export interface IPromptMessageTextContent {
  */
 export interface IPromptMessageImageContent {
   type: "image";
+  /**
+   * Base64
+   */
   data: string;
   mimeType: string;
 }

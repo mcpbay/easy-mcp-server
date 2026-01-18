@@ -145,9 +145,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
     writeLog("Before SetTimeout...");
 
     setTimeout(
-      () => {
-        abortController.abort();
-      },
+      () => { abortController.abort(); },
       this.config?.timeout || 10000,
     );
 
@@ -314,11 +312,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         const capabilities =
           (await this.contextModel.onListCapabilities?.(contextOptions)) ??
-          DEFAULT_CAPABILITIES;
+          this.capabilities;
 
-        const serverInfo = await this.contextModel.onListInformation(
-          contextOptions,
-        );
+        const serverInfo =
+          await this.contextModel.onListInformation(contextOptions);
 
         writeLog("Responsing...");
 
