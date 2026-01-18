@@ -5,6 +5,7 @@ import type {
   IClientMinimalRequestStructure,
   ICompletionCompleteRequest,
   IGenericNotification,
+  IGenericProtocolResponse,
   IGenericRequest,
   IInitializedNotification,
   IInitializeRequest,
@@ -16,6 +17,7 @@ import type {
   IResourcesListRequest,
   IResourcesReadRequest,
   IResourcesSubscribeRequest,
+  IRootsListChangedNotification,
   IToolsCallRequest,
   IToolsListRequest,
 } from "../interfaces/mod.ts";
@@ -115,6 +117,13 @@ export function isProgressNotification(value: unknown) {
   );
 }
 
+export function isRootsListChangedNotification(value: unknown) {
+  return isSpecificNotification<IRootsListChangedNotification>(
+    value,
+    ProtocolNotification.ROOTS_CHANGED,
+  );
+}
+
 export function isCompletionCompleteRequest(value: unknown) {
   return isSpecificRequest<ICompletionCompleteRequest>(
     value,
@@ -148,4 +157,8 @@ export function isResourcesSubscribeRequest(value: unknown) {
     value,
     ProtocolMessage.RESOURCES_SUBSCRIBE,
   );
+}
+
+export function isGenericResultResponse(value: unknown): value is IGenericProtocolResponse<unknown> {
+  return isJSONRpc(value) && !("method" in value) && "id" in value && "result" in value;
 }

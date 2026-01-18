@@ -39,6 +39,10 @@ export interface IProgressNotification extends IGenericNotification {
   };
 }
 
+export interface IRootsListChangedNotification extends IGenericNotification {
+  method: "notifications/roots/list_changed";
+}
+
 export interface IMessageNotification extends IGenericNotification {
   method: "notifications/message";
   params: {

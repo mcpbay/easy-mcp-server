@@ -4,9 +4,9 @@
 export interface IPromptMessage {
   role: "user" | "assistant";
   content:
-    | IPromptMessageTextContent
-    | IPromptMessageImageContent
-    | IPromptMessageResourceContent;
+  | IPromptMessageTextContent
+  | IPromptMessageImageContent
+  | IPromptMessageResourceContent;
 }
 
 /**
@@ -122,4 +122,9 @@ export interface ICapabilities {
   };
   sampling?: {};
   logging?: {};
+}
+
+export interface IRoot {
+  uri: string;
+  name: string;
 }

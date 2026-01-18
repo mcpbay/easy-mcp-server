@@ -3,7 +3,11 @@ import type {
   IClientMinimalRequestStructure,
   IRequestParamsMetadata,
 } from "./common.ts";
-import { ICapabilities, IPromptMessageImageContent, IPromptMessageTextContent } from "./entities.ts";
+import {
+  ICapabilities,
+  IPromptMessageImageContent,
+  IPromptMessageTextContent,
+} from "./entities.ts";
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/utilities/completion/
@@ -31,7 +35,7 @@ export interface ICompletionCompleteRequest
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 /**
@@ -69,7 +73,7 @@ export interface IPingRequest extends IClientMinimalRequestStructure {
 
 export interface IToolsListRequest extends IClientMinimalRequestStructure {
   method: "tools/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IToolsCallRequest extends IClientMinimalRequestStructure {
@@ -82,7 +86,7 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
 
 export interface IResourcesListRequest extends IClientMinimalRequestStructure {
   method: "resources/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IResourcesReadRequest extends IClientMinimalRequestStructure {

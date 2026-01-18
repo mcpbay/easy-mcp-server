@@ -1,15 +1,20 @@
 import { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
-import {
+import type {
   ICapabilities,
   IPrompt,
-  IPromptMessage,
-  IPromptMessageResourceContent,
   IResourceContent,
+  IRoot,
   ITool,
 } from "./entities.ts";
-import { ICompletionCompleteRequest, IInitializeRequest } from "./requests.ts";
-import {
+import type {
+  ICompletionCompleteRequest,
+  IInitializeRequest,
+  ISamplingCreateMessageRequest,
+  ISamplingMessageContent,
+} from "./requests.ts";
+import type {
   ICompletionCompleteResponse,
+  ICompletionMessageResponse,
   IPromptsGetResponse,
   IResourcesListResponse,
   IToolsCallResponse,
@@ -50,6 +55,11 @@ export type LogFunction = (
   options?: Partial<ILogOptions>,
 ) => void;
 
+export type CreateCompletionRequestOptions = Omit<
+  ISamplingCreateMessageRequest["params"],
+  "messages"
+>;
+
 export interface IContextModelOptions {
   /**
    * The abort controller to use for the current request.
@@ -66,10 +76,24 @@ export interface IContextModelOptions {
   progress(value: number, total?: number): Promise<void>;
   log: Record<LogLevel, LogFunction>;
   notify: INotifiy;
+
+  /**
+   * Requests a completion from the client.
+   * @param messages 
+   * @param options 
+   */
+  createCompletion(
+    messages: ISamplingMessageContent[],
+    options?: CreateCompletionRequestOptions,
+  ): Promise<ICompletionMessageResponse["result"]>;
+  /**
+   * Requests the list of roots from the client.
+   */
+  getClientRootsList(): Promise<IRoot[]>;
 }
 
 export interface IContextModel {
-  onListInformation(
+  onClientListInformation(
     options: IContextModelOptions,
   ): Promise<IInitializeRequest["params"]["clientInfo"]>;
 
@@ -77,38 +101,42 @@ export interface IContextModel {
    * Use this method to override the server capabilities.
    * Do not use this if you don't know what you are doing.
    */
-  onListCapabilities?(options: IContextModelOptions): Promise<ICapabilities>;
+  onClientListCapabilities?(options: IContextModelOptions): Promise<ICapabilities>;
 
-  onListPrompts?(options: IContextModelOptions): Promise<IPrompt[]>;
+  onClientListPrompts?(options: IContextModelOptions): Promise<IPrompt[]>;
 
-  onGetPrompt?(
+  onClientGetPrompt?(
     promt: IPrompt,
     args: Record<string, unknown>,
     options: IContextModelOptions,
   ): Promise<IPromptsGetResponse["result"]>;
 
-  onListTools?(options: IContextModelOptions): Promise<ITool[]>;
+  onClientListTools?(options: IContextModelOptions): Promise<ITool[]>;
 
-  onCallTool?(
+  onClientCallTool?(
     tool: ITool,
     args: Record<string, unknown>,
     options: IContextModelOptions,
   ): Promise<IToolsCallResponse["result"]>;
 
-  onListResources?(
+  onClientListResources?(
     options: IContextModelOptions,
   ): Promise<IResourcesListResponse["result"]["resources"]>;
 
-  onReadResource?(
+  onClientReadResource?(
     resourceUri: string,
     options: IContextModelOptions,
   ): Promise<IResourceContent[]>;
 
-  onGetCompletion?(
+  onClientRequestsCompletion?(
     entityType: ContextModelEntityType,
     args: ICompletionCompleteRequest["params"]["argument"],
     options: IContextModelOptions,
   ): Promise<ICompletionCompleteResponse["result"]["completion"]>;
 
-  onConnect?(options: IContextModelOptions): Promise<void>;
+  onClientConnect?(options: IContextModelOptions): Promise<void>;
+  /**
+   * Called when client notifies roots changed on its side.
+   */
+  onClientRootsChanged?(options: IContextModelOptions): Promise<void>;
 }

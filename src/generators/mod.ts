@@ -1,10 +1,35 @@
-import { LogLevel, ProtocolNotification } from "../enums/mod.ts";
+import {
+  LogLevel,
+  ProtocolMessage,
+  ProtocolNotification,
+} from "../enums/mod.ts";
 import type {
   IGenericProtocolResponse,
   IProgressNotification,
   IProtocolErrorResponse,
+  ISamplingCreateMessageRequest,
 } from "../interfaces/mod.ts";
 import type { RequestId } from "../types/mod.ts";
+
+export function samplingCreateMessageRequest(
+  id: RequestId,
+  params: ISamplingCreateMessageRequest["params"],
+) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: ProtocolMessage.SAMPLING_CREATE_MESSAGE,
+    params,
+  } satisfies ISamplingCreateMessageRequest;
+}
+
+export function rootsListRequest(id: RequestId) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: ProtocolMessage.ROOTS_LIST,
+  };
+}
 
 export function promptsListChangedNotification() {
   return {

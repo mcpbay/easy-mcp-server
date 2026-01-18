@@ -43,6 +43,14 @@ export enum ProtocolMessage {
    * https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions
    */
   RESOURCES_SUBSCRIBE = "resources/subscribe",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/client/sampling
+   */
+  SAMPLING_CREATE_MESSAGE = "sampling/createMessage",
+  /**
+   * https://modelcontextprotocol.io/specification/2024-11-05/client/roots#user-interaction-model
+   */
+  ROOTS_LIST = "roots/list",
 }
 
 export enum ProtocolNotification {
@@ -57,6 +65,7 @@ export enum ProtocolNotification {
   MESSAGE = "notifications/message",
   RESOURCES_LIST_CHANGED = "notifications/resources/list_changed",
   RESOURCES_UPDATED = "notifications/resources/updated",
+  ROOTS_CHANGED = "notifications/roots/list_changed",
 }
 
 /**
