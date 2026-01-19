@@ -2,7 +2,7 @@
 import { getStringUid } from "@online/get-string-uid";
 import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
-import { INTERNAL_ERROR, INVALID_PARAMS } from "./src/constants/mod.ts";
+import { INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
 import {
   errorResponse,
@@ -28,6 +28,7 @@ import type {
   ILoggingSetLevelResponse,
   ILogOptions,
   IPingResponse,
+  IProgressOptions,
   IPrompt,
   IPromptsGetResponse,
   IPromptsListResponse,
@@ -85,8 +86,15 @@ const LOG_LEVELS: LogLevel[] = [
   LogLevel.ALERT,
   LogLevel.EMERGENCY,
 ];
-const DEFAULT_PROTOCOL_VERSION = "2025-11-25" as const;
-const DEFAULT_CAPABILITIES: ICapabilities = {
+
+type ProtocolVersion = "2024-11-05" | "2025-11-25";
+
+const SUPPORTED_PROTOCOL_VERSIONS: readonly ProtocolVersion[] = Object.freeze<ProtocolVersion[]>([
+  "2024-11-05",
+  "2025-11-25",
+]);
+const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = "2025-11-25" as const;
+const DEFAULT_CAPABILITIES: ICapabilities = Object.freeze<ICapabilities>({
   completions: { listChanged: false },
   prompts: { listChanged: true },
   resources: { listChanged: true, subscribe: true },
@@ -94,9 +102,10 @@ const DEFAULT_CAPABILITIES: ICapabilities = {
   roots: { listChanged: false },
   sampling: {},
   logging: {},
-} as const;
+} as const);
 
 export interface IEasyMCPConfig {
+  protocol: ProtocolVersion;
   timeout: number;
   completionAttemptTimeout: number;
   server: Partial<{
@@ -107,6 +116,7 @@ export interface IEasyMCPConfig {
     allowClientSubscribeToIndividualResourceUpdate: boolean;
     sendLogs: boolean;
     logsFilePath: string;
+    supportsCompletion: boolean;
   }>;
 }
 
@@ -129,15 +139,17 @@ export class EasyMCPServer implements IMessageHandlerClass {
     | ((value: IRootsListResponse["result"]["roots"]) => void);
     reject: (reason?: any) => void;
   }>();
+  private protocolVersion: ProtocolVersion = DEFAULT_PROTOCOL_VERSION;
 
   constructor(
     private readonly transport: Transport,
     private readonly contextModel: IContextModel,
     private readonly config?: Partial<IEasyMCPConfig>,
   ) {
+    this.protocolVersion = config?.protocol ?? DEFAULT_PROTOCOL_VERSION;
     Object.assign(this, {
       capabilities: {
-        completions: { listChanged: false },
+        completions: config?.server?.supportsCompletion ? {} : void 0,
         prompts: {
           listChanged: config?.server?.sendPromptsListChangedNotification ??
             true,
@@ -258,29 +270,33 @@ export class EasyMCPServer implements IMessageHandlerClass {
   ) {
     const contextOptions: IContextModelOptions = {
       abortController,
-      progress: async (value: number, total?: number) => {
+      progress: async (
+        value: number,
+        options: Partial<IProgressOptions> = {},
+      ) => {
+        const { total = 1, message: progressMessage } = options;
         const progressToken =
           ((message as IGenericRequest).params as IRequestParamsMetadata)._meta
             ?.progressToken;
 
-        crashIfNot(value >= 0 && value <= 1, {
+        crashIfNot(value >= 0 && value <= total, {
           code: INVALID_PARAMS,
-          message: "Progress value must be between 0 and 1",
+          message: `Progress value must be between 0 and ${total}`,
         });
 
-        if (!isUndefined(total)) {
-          crashIfNot(total > 0 && total <= 1, {
-            code: INVALID_PARAMS,
-            message: "Progress total must be between 0 and 1",
-          });
-        }
+        // if (!isUndefined(total)) {
+        //   crashIfNot(total > 0 && total <= 1, {
+        //     code: INVALID_PARAMS,
+        //     message: "Progress total must be between 0 and 1",
+        //   });
+        // }
 
         if (!progressToken) {
           return;
         }
 
         await this.transport.send(
-          progressNotification(progressToken, value, total),
+          progressNotification(progressToken, value, total, progressMessage),
         );
       },
       log: Object.fromEntries(
@@ -348,7 +364,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         const resultPromise = new Promise<ICompletionMessageResponse["result"]>(
           (resolve, reject) => {
-            this.defeeredPromises.set(uniqueId, { type: DeeferedPromiseType.COMPLETION, resolve, reject });
+            this.defeeredPromises.set(uniqueId, {
+              type: DeeferedPromiseType.COMPLETION,
+              resolve,
+              reject,
+            });
 
             setTimeout(
               () =>
@@ -369,9 +389,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         this.transport.send(rootsListRequest(uniqueId));
 
-        const resultPromise = new Promise<IRootsListResponse["result"]["roots"]>(
+        const resultPromise = new Promise<
+          IRootsListResponse["result"]["roots"]
+        >(
           (resolve, reject) => {
-            this.defeeredPromises.set(uniqueId, { type: DeeferedPromiseType.COMPLETION, resolve, reject });
+            this.defeeredPromises.set(uniqueId, {
+              type: DeeferedPromiseType.COMPLETION,
+              resolve,
+              reject,
+            });
 
             setTimeout(
               () =>
@@ -386,7 +412,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         return resultPromise.finally(() =>
           this.defeeredPromises.delete(uniqueId)
         );
-      }
+      },
     };
 
     writeLog("Message handler of: " + JSON.stringify(message));
@@ -394,27 +420,30 @@ export class EasyMCPServer implements IMessageHandlerClass {
     switch (true) {
       case isInitializeRequest(message): {
         const { id, params } = message;
+        const requestedProtocolVersion = params.protocolVersion as ProtocolVersion;
 
         writeLog("Initialize request");
 
-        crashIfNot(params.protocolVersion === DEFAULT_PROTOCOL_VERSION, {
+        crashIfNot(SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion), {
           code: INVALID_PARAMS,
-          message: "Unsupported protocol version",
+          message: "Unsupported protocol version requested",
           data: {
-            supported: [DEFAULT_PROTOCOL_VERSION],
-            requested: params.protocolVersion,
+            supported: SUPPORTED_PROTOCOL_VERSIONS,
+            requested: requestedProtocolVersion,
           },
         });
 
-        writeLog("Supported protocol");
+        writeLog(`Using protocol version: ${requestedProtocolVersion}`);
+        this.setProtocolVersion(requestedProtocolVersion);
 
         const capabilities =
-          (await this.contextModel.onClientListCapabilities?.(contextOptions)) ??
+          (await this.contextModel.onClientListCapabilities?.(
+            contextOptions,
+          )) ??
           this.capabilities;
 
-        const serverInfo = await this.contextModel.onClientListInformation(
-          contextOptions,
-        );
+        const serverInfo =
+          await this.contextModel.onClientListInformation(contextOptions);
 
         writeLog("Responsing...");
 
@@ -423,7 +452,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           successResponse<IInitializeResponse["result"]>(
             id,
             {
-              protocolVersion: DEFAULT_PROTOCOL_VERSION,
+              protocolVersion: this.protocolVersion,
               capabilities,
               serverInfo,
             },
@@ -449,7 +478,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isPromptsListRequest(message): {
         const { id, params } = message;
-        const prompts = await this.contextModel.onClientListPrompts?.(contextOptions);
+        const prompts = await this.contextModel.onClientListPrompts?.(
+          contextOptions,
+        );
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -472,7 +503,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isPromptsGetRequest(message): {
         const { id, params } = message;
         const { name: promptName, arguments: promptArgs } = params;
-        const prompts = await this.contextModel.onClientListPrompts?.(contextOptions);
+        const prompts = await this.contextModel.onClientListPrompts?.(
+          contextOptions,
+        );
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -500,7 +533,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isToolsListRequest(message): {
         const { id, params } = message;
-        const tools = await this.contextModel.onClientListTools?.(contextOptions);
+        const tools = await this.contextModel.onClientListTools?.(
+          contextOptions,
+        );
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -523,7 +558,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isToolsCallRequest(message): {
         const { id, params } = message;
         const { name: toolName, arguments: toolArgs } = params;
-        const tools = await this.contextModel.onClientListTools?.(contextOptions);
+        const tools = await this.contextModel.onClientListTools?.(
+          contextOptions,
+        );
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No tools" });
 
@@ -550,6 +587,17 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       case isCompletionCompleteRequest(message): {
+        // Specific case, due the first version of the MCP procol does supports completions requests.
+        if (this.protocolVersion !== "2024-11-05") {
+          this.requireAtLeastVersion("2025-11-25", "The protocol version is too old to support completions requests.");
+
+          // I do put this here due the protocol version "2024-11-05" does not support capability check for this request
+          crashIfNot(this.capabilities.completions, {
+            code: METHOD_NOT_FOUND,
+            message: "'sendCompletionCompleteRequest' server option is not enabled",
+          });
+        }
+
         const { id, params } = message;
         const { ref, argument } = params;
         const completion = await this.contextModel.onClientRequestsCompletion?.(
@@ -673,12 +721,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
           const completion = result as ICompletionMessageResponse["result"];
 
           // I don't know why I do need to put the `& IRoot[]` here, but it works... a TypeScript bug?
-          defeeredPromise.resolve(completion as ICompletionMessageResponse["result"] & IRoot[]);
+          defeeredPromise.resolve(
+            completion as ICompletionMessageResponse["result"] & IRoot[],
+          );
         } else if (defeeredPromise.type === DeeferedPromiseType.ROOTING) {
           const { roots } = result as IRootsListResponse["result"];
 
           // Same thing here...
-          defeeredPromise.resolve(roots as ICompletionMessageResponse["result"] & IRoot[]);
+          defeeredPromise.resolve(
+            roots as ICompletionMessageResponse["result"] & IRoot[],
+          );
         }
 
         break;
@@ -723,6 +775,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
     this.logLevel = logLevel;
   }
 
+  private setProtocolVersion(protocolVersion: ProtocolVersion) {
+    this.protocolVersion = protocolVersion;
+  }
+
   private setCapabilities(capabilities: ICapabilities) {
     Object.assign(this, { capabilities });
   }
@@ -737,6 +793,20 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
   private getDeeferedPromiseById(id: RequestId) {
     return this.defeeredPromises.get(id);
+  }
+
+  private requireAtLeastVersion(protocolVersion: ProtocolVersion, message: string) {
+    crashIfNot(
+      SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) < SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
+      {
+        code: METHOD_NOT_FOUND,
+        message,
+        data: {
+          currentProtocolVersion: this.protocolVersion,
+          requiredProtocolVersion: protocolVersion
+        },
+      },
+    );
   }
 }
 

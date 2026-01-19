@@ -60,6 +60,11 @@ export type CreateCompletionRequestOptions = Omit<
   "messages"
 >;
 
+export interface IProgressOptions {
+  total: number;
+  message: string;
+}
+
 export interface IContextModelOptions {
   /**
    * The abort controller to use for the current request.
@@ -73,14 +78,14 @@ export interface IContextModelOptions {
    * @param total The total progress, must be between 0 and 1
    * @returns nothing
    */
-  progress(value: number, total?: number): Promise<void>;
+  progress(value: number, options?: Partial<IProgressOptions>): Promise<void>;
   log: Record<LogLevel, LogFunction>;
   notify: INotifiy;
 
   /**
    * Requests a completion from the client.
-   * @param messages 
-   * @param options 
+   * @param messages
+   * @param options
    */
   createCompletion(
     messages: ISamplingMessageContent[],
@@ -101,7 +106,9 @@ export interface IContextModel {
    * Use this method to override the server capabilities.
    * Do not use this if you don't know what you are doing.
    */
-  onClientListCapabilities?(options: IContextModelOptions): Promise<ICapabilities>;
+  onClientListCapabilities?(
+    options: IContextModelOptions,
+  ): Promise<ICapabilities>;
 
   onClientListPrompts?(options: IContextModelOptions): Promise<IPrompt[]>;
 

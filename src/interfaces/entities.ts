@@ -1,12 +1,15 @@
+import { Role } from "../types/mod.ts";
+
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
  */
 export interface IPromptMessage {
-  role: "user" | "assistant";
+  role: Role;
   content:
   | IPromptMessageTextContent
   | IPromptMessageImageContent
-  | IPromptMessageResourceContent;
+  | IPromptMessageResourceContent
+  | IPromptMessageAudioContent;
 }
 
 /**
@@ -35,6 +38,35 @@ export interface IPromptMessageImageContent {
 export interface IPromptMessageResourceContent {
   type: "resource";
   resource: Omit<IResource, "name">;
+}
+
+/**
+ * https://modelcontextprotocol.io/specification/2025-03-26/server/tools#audio-content
+ * Version: 2025-03-26+
+ */
+export interface IPromptMessageAudioContent {
+  type: "audio";
+  data: string;
+  mimeType: string;
+}
+
+export interface IToolResultResourceLinkContent {
+  type: "resource_link";
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+  annotations?: Partial<{
+    audience: Role[];
+    /**
+     * 0 to 1.
+     */
+    priority: number;
+    /**
+     * ISO 8601.
+     */
+    lastModified: string;
+  }>;
 }
 
 /**
@@ -88,7 +120,7 @@ export interface IPrompt {
   arguments?: IPromptArgument[];
 }
 
-export interface IInputSchemaProperty {
+export interface IInputOutputSchemaProperty {
   type: "object";
   properties?: Record<string, object>;
   required?: string[];
@@ -100,7 +132,53 @@ export interface ITool {
   /**
    * https://json-schema.org/
    */
-  inputSchema: IInputSchemaProperty;
+  inputSchema: IInputOutputSchemaProperty;
+  /**
+   * https://modelcontextprotocol.io/specification/2025-06-18/server/tools#output-schema
+   */
+  outputSchema?: IInputOutputSchemaProperty;
+  /**
+   * https://modelcontextprotocol.io/specification/2025-03-26/changelog
+   */
+  annotations?: Partial<{
+    /**
+     * A human-readable title for the tool.
+     */
+    title: string;
+    /**
+     * If true, the tool does not modify its environment.
+     *
+     * Default: false
+     */
+    readOnlyHint: boolean;
+    /**
+     * If true, the tool may perform destructive updates to its environment.
+     * If false, the tool performs only additive updates.
+     *
+     * (This property is meaningful only when `readOnlyHint == false`)
+     *
+     * Default: true
+     */
+    destructiveHint: boolean;
+    /**
+     * If true, calling the tool repeatedly with the same arguments
+     * will have no additional effect on the its environment.
+     *
+     * (This property is meaningful only when `readOnlyHint == false`)
+     *
+     * Default: false
+     */
+    idempotentHint: boolean;
+    /**
+     * If true, this tool may interact with an "open world" of external
+     * entities. If false, the tool's domain of interaction is closed.
+     * For example, the world of a web search tool is open, whereas that
+     * of a memory tool is not.
+     *
+     * Default: true
+     */
+    openWorldHint: boolean;
+  }>;
 }
 
 export interface ICapabilities {
@@ -114,12 +192,10 @@ export interface ICapabilities {
     listChanged: boolean;
     subscribe: boolean;
   }>;
-  completions: {
-    listChanged: boolean;
-  };
   roots: {
     listChanged: boolean;
   };
+  completions?: {};
   sampling?: {};
   logging?: {};
 }

@@ -36,6 +36,7 @@ export interface IProgressNotification extends IGenericNotification {
     progressToken: RequestId;
     progress: number;
     total?: number;
+    message?: string;
   };
 }
 

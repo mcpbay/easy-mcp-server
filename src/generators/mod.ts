@@ -80,6 +80,7 @@ export function progressNotification(
   progressToken: RequestId,
   value: number,
   total?: number,
+  message?: string,
 ): IProgressNotification {
   return {
     jsonrpc: "2.0",
@@ -88,6 +89,7 @@ export function progressNotification(
       progressToken,
       progress: value,
       total,
+      message,
     },
   };
 }

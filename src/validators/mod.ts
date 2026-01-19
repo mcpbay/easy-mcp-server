@@ -159,6 +159,9 @@ export function isResourcesSubscribeRequest(value: unknown) {
   );
 }
 
-export function isGenericResultResponse(value: unknown): value is IGenericProtocolResponse<unknown> {
-  return isJSONRpc(value) && !("method" in value) && "id" in value && "result" in value;
+export function isGenericResultResponse(
+  value: unknown,
+): value is IGenericProtocolResponse<unknown> {
+  return isJSONRpc(value) && !("method" in value) && "id" in value &&
+    "result" in value;
 }

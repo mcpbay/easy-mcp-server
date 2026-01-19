@@ -7,6 +7,7 @@ import type {
   IResourceContent,
   IRoot,
   ITool,
+  IToolResultResourceLinkContent,
 } from "./entities.ts";
 
 /**
@@ -22,7 +23,7 @@ export interface ICompletionCompleteResponse extends
       hasMore: boolean;
       total?: number;
     };
-  }> { }
+  }> {}
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
@@ -31,7 +32,7 @@ export interface IPromptsListResponse extends
   IGenericProtocolResponse<{
     prompts: IPrompt[];
     nextCursor?: string;
-  }> { }
+  }> {}
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
@@ -40,7 +41,7 @@ export interface IPromptsGetResponse extends
   IGenericProtocolResponse<{
     description: string;
     messages: IPromptMessage[];
-  }> { }
+  }> {}
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/basic/lifecycle/#initialization
@@ -53,44 +54,49 @@ export interface IInitializeResponse extends
       name: string;
       version: string;
     };
-  }> { }
+  }> {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping
  */
-export interface IPingResponse extends IGenericProtocolResponse<{}> { }
+export interface IPingResponse extends IGenericProtocolResponse<{}> {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/server/tools
  */
 export interface IToolsListResponse
-  extends IGenericProtocolResponse<{ tools: ITool[]; nextCursor?: string; }> { }
+  extends IGenericProtocolResponse<{ tools: ITool[]; nextCursor?: string }> {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/server/tools
  */
-export interface IToolsCallResponse
-  extends
-  IGenericProtocolResponse<{ content: IPromptMessage[]; isError: boolean; }> { }
+export interface IToolsCallResponse extends
+  IGenericProtocolResponse<
+    {
+      content: (IPromptMessage & IToolResultResourceLinkContent)[];
+      isError: boolean;
+      structuredContent: Record<string, unknown>;
+    }
+  > {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
  */
 export interface IResourcesListResponse
   extends
-  IGenericProtocolResponse<{ resources: IResource[]; nextCursor?: string; }> { }
+    IGenericProtocolResponse<{ resources: IResource[]; nextCursor?: string }> {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/server/resources#user-interaction-model
  */
 export interface IResourcesReadResponse
-  extends IGenericProtocolResponse<{ contents: IResourceContent[]; }> { }
+  extends IGenericProtocolResponse<{ contents: IResourceContent[] }> {}
 
 export interface ILoggingSetLevelResponse
-  extends IGenericProtocolResponse<{}> { }
+  extends IGenericProtocolResponse<{}> {}
 
 export interface IResourcesSubscribeResponse
-  extends IGenericProtocolResponse<{}> { }
+  extends IGenericProtocolResponse<{}> {}
 
 export interface ICompletionMessageResponse extends
   IGenericProtocolResponse<
@@ -98,10 +104,10 @@ export interface ICompletionMessageResponse extends
       model: string;
       stopReason?: "endTurn" | "stopSequence" | "maxTokens" | string;
     }
-  > { }
+  > {}
 
 /**
  * https://modelcontextprotocol.io/specification/2024-11-05/client/roots
  */
 export interface IRootsListResponse
-  extends IGenericProtocolResponse<{ roots: IRoot[]; }> { }
+  extends IGenericProtocolResponse<{ roots: IRoot[] }> {}

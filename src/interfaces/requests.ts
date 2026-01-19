@@ -1,4 +1,5 @@
 import { LogLevel } from "../enums/mod.ts";
+import { Role } from "../types/mod.ts";
 import type {
   IClientMinimalRequestStructure,
   IRequestParamsMetadata,
@@ -113,7 +114,7 @@ export interface IResourcesSubscribeRequest
 }
 
 export interface ISamplingMessageContent {
-  role: "user" | "assistant";
+  role: Role;
   content: IPromptMessageTextContent | IPromptMessageImageContent;
 }
 
