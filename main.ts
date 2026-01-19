@@ -87,13 +87,14 @@ const LOG_LEVELS: LogLevel[] = [
   LogLevel.EMERGENCY,
 ];
 
-type ProtocolVersion = "2024-11-05" | "2025-11-25";
+type ProtocolVersion = "2024-11-05" | "2025-03-26" | "2025-06-18";
 
 const SUPPORTED_PROTOCOL_VERSIONS: readonly ProtocolVersion[] = Object.freeze<ProtocolVersion[]>([
   "2024-11-05",
-  "2025-11-25",
+  "2025-03-26",
+  "2025-06-18"
 ]);
-const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = "2025-11-25" as const;
+const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = "2025-06-18" as const;
 const DEFAULT_CAPABILITIES: ICapabilities = Object.freeze<ICapabilities>({
   completions: { listChanged: false },
   prompts: { listChanged: true },
@@ -589,7 +590,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isCompletionCompleteRequest(message): {
         // Specific case, due the first version of the MCP procol does supports completions requests.
         if (this.protocolVersion !== "2024-11-05") {
-          this.requireAtLeastVersion("2025-11-25", "The protocol version is too old to support completions requests.");
+          this.requireAtLeastVersion("2025-03-26", "The protocol version is too old to support completions requests.");
 
           // I do put this here due the protocol version "2024-11-05" does not support capability check for this request
           crashIfNot(this.capabilities.completions, {

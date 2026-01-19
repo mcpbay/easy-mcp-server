@@ -8,6 +8,7 @@ import {
   ICapabilities,
   IPromptMessageImageContent,
   IPromptMessageTextContent,
+  IServerClientInformation,
 } from "./entities.ts";
 
 /**
@@ -28,6 +29,9 @@ export interface ICompletionCompleteRequest
       name: string;
       value: string;
     };
+    context?: {
+      arguments: Record<string, unknown>;
+    };
   } & IRequestParamsMetadata;
 }
 
@@ -36,7 +40,7 @@ export interface ICompletionCompleteRequest
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string } & IRequestParamsMetadata;
+  params?: { cursor: string; } & IRequestParamsMetadata;
 }
 
 /**
@@ -58,10 +62,7 @@ export interface IInitializeRequest extends IClientMinimalRequestStructure {
   params: {
     protocolVersion: string;
     capabilities: ICapabilities;
-    clientInfo: {
-      name: string;
-      version: string;
-    };
+    clientInfo: IServerClientInformation;
   } & IRequestParamsMetadata;
 }
 
@@ -74,7 +75,7 @@ export interface IPingRequest extends IClientMinimalRequestStructure {
 
 export interface IToolsListRequest extends IClientMinimalRequestStructure {
   method: "tools/list";
-  params?: { cursor: string } & IRequestParamsMetadata;
+  params?: { cursor: string; } & IRequestParamsMetadata;
 }
 
 export interface IToolsCallRequest extends IClientMinimalRequestStructure {
@@ -87,7 +88,7 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
 
 export interface IResourcesListRequest extends IClientMinimalRequestStructure {
   method: "resources/list";
-  params?: { cursor: string } & IRequestParamsMetadata;
+  params?: { cursor: string; } & IRequestParamsMetadata;
 }
 
 export interface IResourcesReadRequest extends IClientMinimalRequestStructure {

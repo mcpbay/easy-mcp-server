@@ -54,6 +54,10 @@ export interface IInitializeResponse extends
       name: string;
       version: string;
     };
+    /**
+     * https://modelcontextprotocol.io/specification/2025-03-26/basic/lifecycle
+     */
+    instructions?: string;
   }> {}
 
 /**

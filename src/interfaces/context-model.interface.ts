@@ -4,6 +4,7 @@ import type {
   IPrompt,
   IResourceContent,
   IRoot,
+  IServerClientInformation,
   ITool,
 } from "./entities.ts";
 import type {
@@ -98,9 +99,7 @@ export interface IContextModelOptions {
 }
 
 export interface IContextModel {
-  onClientListInformation(
-    options: IContextModelOptions,
-  ): Promise<IInitializeRequest["params"]["clientInfo"]>;
+  onClientListInformation(options: IContextModelOptions): Promise<IServerClientInformation>;
 
   /**
    * Use this method to override the server capabilities.

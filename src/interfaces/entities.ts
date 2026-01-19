@@ -1,5 +1,9 @@
 import { Role } from "../types/mod.ts";
 
+export interface ITitleable {
+  title?: string;
+}
+
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
  */
@@ -104,7 +108,7 @@ export type IResourceContent = IResourceTextContent | IResourceFileContent;
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/resources/
  */
-export interface IResource {
+export interface IResource extends ITitleable {
   name: string;
   description: string;
   link: string;
@@ -114,7 +118,7 @@ export interface IResource {
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/
  */
-export interface IPrompt {
+export interface IPrompt extends ITitleable {
   name: string;
   description: string;
   arguments?: IPromptArgument[];
@@ -126,7 +130,7 @@ export interface IInputOutputSchemaProperty {
   required?: string[];
 }
 
-export interface ITool {
+export interface ITool extends ITitleable {
   name: string;
   description: string;
   /**
@@ -203,4 +207,9 @@ export interface ICapabilities {
 export interface IRoot {
   uri: string;
   name: string;
+}
+
+export interface IServerClientInformation extends ITitleable {
+  name: string;
+  version: string;
 }
