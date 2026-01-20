@@ -40,7 +40,7 @@ export interface ICompletionCompleteRequest
  */
 export interface IPromptsListRequest extends IClientMinimalRequestStructure {
   method: "prompts/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface IPingRequest extends IClientMinimalRequestStructure {
 
 export interface IToolsListRequest extends IClientMinimalRequestStructure {
   method: "tools/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IToolsCallRequest extends IClientMinimalRequestStructure {
@@ -88,7 +88,7 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
 
 export interface IResourcesListRequest extends IClientMinimalRequestStructure {
   method: "resources/list";
-  params?: { cursor: string; } & IRequestParamsMetadata;
+  params?: { cursor: string } & IRequestParamsMetadata;
 }
 
 export interface IResourcesReadRequest extends IClientMinimalRequestStructure {
@@ -213,5 +213,14 @@ export interface ISamplingCreateMessageRequest
      * Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
      */
     metadata?: object;
+  } & IRequestParamsMetadata;
+}
+
+export interface IElicitationCreateRequest
+  extends IClientMinimalRequestStructure {
+  method: "elicitation/create";
+  params: {
+    message: string;
+    requestedSchema: object;
   } & IRequestParamsMetadata;
 }

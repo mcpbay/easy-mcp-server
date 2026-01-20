@@ -51,6 +51,10 @@ export enum ProtocolMessage {
    * https://modelcontextprotocol.io/specification/2024-11-05/client/roots#user-interaction-model
    */
   ROOTS_LIST = "roots/list",
+  /**
+   * https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
+   */
+  ELICITATION_CREATE = "elicitation/create",
 }
 
 export enum ProtocolNotification {

@@ -1,6 +1,9 @@
 import { Role } from "../types/mod.ts";
 
 export interface ITitleable {
+  /**
+   * Since https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle
+   */
   title?: string;
 }
 
@@ -142,6 +145,10 @@ export interface ITool extends ITitleable {
    */
   outputSchema?: IInputOutputSchemaProperty;
   /**
+   * https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks#tool-level-negotiation
+   */
+  execution?: { taskSupport: "required" | "optional" | "forbidden"; };
+  /**
    * https://modelcontextprotocol.io/specification/2025-03-26/changelog
    */
   annotations?: Partial<{
@@ -202,6 +209,14 @@ export interface ICapabilities {
   completions?: {};
   sampling?: {};
   logging?: {};
+  tasks?: Partial<{
+    lists: {};
+    cancel: {};
+    requests: {
+      tools: { call: {}; };
+    };
+  }>;
+  elicitation?: {};
 }
 
 export interface IRoot {
@@ -209,7 +224,33 @@ export interface IRoot {
   name: string;
 }
 
+export interface IIcon {
+  src: string;
+  mimeType: string;
+  /**
+   * `any` for svg.
+   */
+  sizes: string[];
+  theme?: "light" | "dark";
+}
+
 export interface IServerClientInformation extends ITitleable {
   name: string;
   version: string;
+  /**
+   * Since https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
+   */
+  description?: string;
+  /**
+   * Since https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
+   */
+  icons?: IIcon[];
+  /**
+   * Since https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
+   */
+  websiteUrl?: string;
+  /**
+   * Since https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
+   */
+  instructions?: string;
 }

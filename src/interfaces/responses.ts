@@ -115,3 +115,23 @@ export interface ICompletionMessageResponse extends
  */
 export interface IRootsListResponse
   extends IGenericProtocolResponse<{ roots: IRoot[] }> {}
+
+export interface IIElicitationCreateResponseAccept {
+  action: "accept";
+  content: Record<string, unknown>;
+}
+
+export interface IIElicitationCreateResponseDecline {
+  action: "decline";
+}
+
+export interface IIElicitationCreateResponseCancel {
+  action: "cancel";
+}
+
+export interface IElicitationCreateResponse extends
+  IGenericProtocolResponse<
+    | IIElicitationCreateResponseAccept
+    | IIElicitationCreateResponseDecline
+    | IIElicitationCreateResponseCancel
+  > {}

@@ -11,6 +11,15 @@ import type {
 } from "../interfaces/mod.ts";
 import type { RequestId } from "../types/mod.ts";
 
+export function elicitationCreateRequest(id: RequestId, message: string, schema: object) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: ProtocolMessage.ELICITATION_CREATE,
+    params: { message, requestedSchema: schema },
+  };
+}
+
 export function samplingCreateMessageRequest(
   id: RequestId,
   params: ISamplingCreateMessageRequest["params"],

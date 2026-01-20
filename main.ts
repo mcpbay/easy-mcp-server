@@ -2,9 +2,14 @@
 import { getStringUid } from "@online/get-string-uid";
 import { isUndefined } from "@online/is";
 import { Transport } from "./src/abstractions/mod.ts";
-import { INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND } from "./src/constants/mod.ts";
+import {
+  INTERNAL_ERROR,
+  INVALID_PARAMS,
+  METHOD_NOT_FOUND,
+} from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
 import {
+  elicitationCreateRequest,
   errorResponse,
   loggingNotification,
   progressNotification,
@@ -23,6 +28,8 @@ import type {
   ICompletionMessageResponse,
   IContextModel,
   IContextModelOptions,
+  IElicitationCreateRequest,
+  IElicitationCreateResponse,
   IGenericRequest,
   IInitializeResponse,
   ILoggingSetLevelResponse,
@@ -87,28 +94,37 @@ const LOG_LEVELS: LogLevel[] = [
   LogLevel.EMERGENCY,
 ];
 
-type ProtocolVersion = "2024-11-05" | "2025-03-26" | "2025-06-18";
+type ProtocolVersion =
+  | "2024-11-05"
+  | "2025-03-26"
+  | "2025-06-18"
+  | "2025-11-25";
 
-const SUPPORTED_PROTOCOL_VERSIONS: readonly ProtocolVersion[] = Object.freeze<ProtocolVersion[]>([
+const SUPPORTED_PROTOCOL_VERSIONS: readonly ProtocolVersion[] = Object.freeze<
+  ProtocolVersion[]
+>([
   "2024-11-05",
   "2025-03-26",
-  "2025-06-18"
+  "2025-06-18",
 ]);
 const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = "2025-06-18" as const;
-const DEFAULT_CAPABILITIES: ICapabilities = Object.freeze<ICapabilities>({
-  completions: { listChanged: false },
-  prompts: { listChanged: true },
-  resources: { listChanged: true, subscribe: true },
-  tools: { listChanged: true },
-  roots: { listChanged: false },
-  sampling: {},
-  logging: {},
-} as const);
+const DEFAULT_CAPABILITIES: ICapabilities = Object.freeze<ICapabilities>(
+  {
+    completions: { listChanged: false },
+    prompts: { listChanged: true },
+    resources: { listChanged: true, subscribe: true },
+    tools: { listChanged: true },
+    roots: { listChanged: false },
+    sampling: {},
+    logging: {},
+  } as const,
+);
 
 export interface IEasyMCPConfig {
   protocol: ProtocolVersion;
   timeout: number;
   completionAttemptTimeout: number;
+  elicitationAttemptTimeout: number;
   server: Partial<{
     sendToolsListChangedNotification: boolean;
     sendPromptsListChangedNotification: boolean;
@@ -124,6 +140,7 @@ export interface IEasyMCPConfig {
 enum DeeferedPromiseType {
   COMPLETION = "completion",
   ROOTING = "rooting",
+  ELICITATION = "elicitation",
 }
 
 export class EasyMCPServer implements IMessageHandlerClass {
@@ -137,6 +154,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
     type: DeeferedPromiseType;
     resolve:
     | ((value: ICompletionMessageResponse["result"]) => void)
+    | ((value: IElicitationCreateResponse["result"]) => void)
     | ((value: IRootsListResponse["result"]["roots"]) => void);
     reject: (reason?: any) => void;
   }>();
@@ -385,6 +403,38 @@ export class EasyMCPServer implements IMessageHandlerClass {
           this.defeeredPromises.delete(uniqueId)
         );
       },
+      elicitate: (message: string, schema: object) => {
+        crashIfNot(this.capabilities.elicitation, {
+          message: "Elicitation capability is not enabled",
+          code: INTERNAL_ERROR,
+        });
+
+        const uniqueId = this.getUniqueId();
+
+        this.transport.send(elicitationCreateRequest(uniqueId, message, schema));
+
+        const resultPromise = new Promise<IElicitationCreateResponse["result"]>(
+          (resolve, reject) => {
+            this.defeeredPromises.set(uniqueId, {
+              type: DeeferedPromiseType.ELICITATION,
+              resolve,
+              reject,
+            });
+
+            setTimeout(
+              () =>
+                reject(
+                  new RequestException("Request timed out", INTERNAL_ERROR),
+                ),
+              this.config?.elicitationAttemptTimeout || 10000,
+            );
+          },
+        );
+
+        return resultPromise.finally(() =>
+          this.defeeredPromises.delete(uniqueId)
+        );
+      },
       getClientRootsList: () => {
         const uniqueId = this.getUniqueId();
 
@@ -421,18 +471,22 @@ export class EasyMCPServer implements IMessageHandlerClass {
     switch (true) {
       case isInitializeRequest(message): {
         const { id, params } = message;
-        const requestedProtocolVersion = params.protocolVersion as ProtocolVersion;
+        const requestedProtocolVersion = params
+          .protocolVersion as ProtocolVersion;
 
         writeLog("Initialize request");
 
-        crashIfNot(SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion), {
-          code: INVALID_PARAMS,
-          message: "Unsupported protocol version requested",
-          data: {
-            supported: SUPPORTED_PROTOCOL_VERSIONS,
-            requested: requestedProtocolVersion,
+        crashIfNot(
+          SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion),
+          {
+            code: INVALID_PARAMS,
+            message: "Unsupported protocol version requested",
+            data: {
+              supported: SUPPORTED_PROTOCOL_VERSIONS,
+              requested: requestedProtocolVersion,
+            },
           },
-        });
+        );
 
         writeLog(`Using protocol version: ${requestedProtocolVersion}`);
         this.setProtocolVersion(requestedProtocolVersion);
@@ -443,8 +497,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           )) ??
           this.capabilities;
 
-        const serverInfo =
-          await this.contextModel.onClientListInformation(contextOptions);
+        const serverInfo = await this.contextModel.onClientListInformation(
+          contextOptions,
+        );
 
         writeLog("Responsing...");
 
@@ -590,12 +645,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isCompletionCompleteRequest(message): {
         // Specific case, due the first version of the MCP procol does supports completions requests.
         if (this.protocolVersion !== "2024-11-05") {
-          this.requireAtLeastVersion("2025-03-26", "The protocol version is too old to support completions requests.");
+          this.requireAtLeastVersion(
+            "2025-03-26",
+            "The protocol version is too old to support completions requests.",
+          );
 
           // I do put this here due the protocol version "2024-11-05" does not support capability check for this request
           crashIfNot(this.capabilities.completions, {
             code: METHOD_NOT_FOUND,
-            message: "'sendCompletionCompleteRequest' server option is not enabled",
+            message:
+              "'sendCompletionCompleteRequest' server option is not enabled",
           });
         }
 
@@ -714,26 +773,26 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const defeeredPromise = this.getDeeferedPromiseById(id);
 
         crashIfNot(defeeredPromise, {
-          code: INTERNAL_ERROR,
+          code: INVALID_PARAMS,
           message: `No request found related with id '${id}'`,
         });
 
         if (defeeredPromise.type === DeeferedPromiseType.COMPLETION) {
           const completion = result as ICompletionMessageResponse["result"];
 
-          // I don't know why I do need to put the `& IRoot[]` here, but it works... a TypeScript bug?
-          defeeredPromise.resolve(
-            completion as ICompletionMessageResponse["result"] & IRoot[],
-          );
+          // I had to use `ICompletionMessageResponse["result"] & IRoot[] & { action: "cancel"; }`... I wont type that sh*t.
+          defeeredPromise.resolve(completion as any);
         } else if (defeeredPromise.type === DeeferedPromiseType.ROOTING) {
           const { roots } = result as IRootsListResponse["result"];
 
           // Same thing here...
-          defeeredPromise.resolve(
-            roots as ICompletionMessageResponse["result"] & IRoot[],
-          );
-        }
+          defeeredPromise.resolve(roots as any);
+        } else if (defeeredPromise.type === DeeferedPromiseType.ELICITATION) {
+          const elicitationResponse = result as IElicitationCreateResponse["result"];
 
+          // I hate `any`, but here works. Don't use it if you don't know what you're doing!
+          defeeredPromise.resolve(elicitationResponse as any);
+        }
         break;
       }
       default: {
@@ -796,15 +855,19 @@ export class EasyMCPServer implements IMessageHandlerClass {
     return this.defeeredPromises.get(id);
   }
 
-  private requireAtLeastVersion(protocolVersion: ProtocolVersion, message: string) {
+  private requireAtLeastVersion(
+    protocolVersion: ProtocolVersion,
+    message: string,
+  ) {
     crashIfNot(
-      SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) < SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
+      SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) <
+      SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
       {
         code: METHOD_NOT_FOUND,
         message,
         data: {
           currentProtocolVersion: this.protocolVersion,
-          requiredProtocolVersion: protocolVersion
+          requiredProtocolVersion: protocolVersion,
         },
       },
     );

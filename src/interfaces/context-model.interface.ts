@@ -16,6 +16,7 @@ import type {
 import type {
   ICompletionCompleteResponse,
   ICompletionMessageResponse,
+  IElicitationCreateResponse,
   IPromptsGetResponse,
   IResourcesListResponse,
   IToolsCallResponse,
@@ -96,10 +97,17 @@ export interface IContextModelOptions {
    * Requests the list of roots from the client.
    */
   getClientRootsList(): Promise<IRoot[]>;
+
+  /**
+   * Requests an elicitation to the client.
+   */
+  elicitate(message: string, schema: object): Promise<IElicitationCreateResponse["result"]>;
 }
 
 export interface IContextModel {
-  onClientListInformation(options: IContextModelOptions): Promise<IServerClientInformation>;
+  onClientListInformation(
+    options: IContextModelOptions,
+  ): Promise<IServerClientInformation>;
 
   /**
    * Use this method to override the server capabilities.
