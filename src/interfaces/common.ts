@@ -23,6 +23,11 @@ export interface IProtocolErrorResponse<T>
     message: string;
     data?: T;
   };
+  result?: {
+    _meta: {
+      taskId: string;
+    };
+  };
 }
 
 export interface IGenericRequest extends IClientMinimalRequestStructure {

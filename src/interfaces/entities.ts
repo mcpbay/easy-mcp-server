@@ -1,4 +1,4 @@
-import { Role } from "../types/mod.ts";
+import { Role, TaskStatus } from "../enums/mod.ts";
 
 export interface ITitleable {
   /**
@@ -13,10 +13,10 @@ export interface ITitleable {
 export interface IPromptMessage {
   role: Role;
   content:
-  | IPromptMessageTextContent
-  | IPromptMessageImageContent
-  | IPromptMessageResourceContent
-  | IPromptMessageAudioContent;
+    | IPromptMessageTextContent
+    | IPromptMessageImageContent
+    | IPromptMessageResourceContent
+    | IPromptMessageAudioContent;
 }
 
 /**
@@ -147,7 +147,7 @@ export interface ITool extends ITitleable {
   /**
    * https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks#tool-level-negotiation
    */
-  execution?: { taskSupport: "required" | "optional" | "forbidden"; };
+  execution?: { taskSupport: "required" | "optional" | "forbidden" };
   /**
    * https://modelcontextprotocol.io/specification/2025-03-26/changelog
    */
@@ -213,10 +213,13 @@ export interface ICapabilities {
     lists: {};
     cancel: {};
     requests: {
-      tools: { call: {}; };
+      tools: { call: {} };
     };
   }>;
-  elicitation?: {};
+  elicitation?: Partial<{
+    forms: {};
+    urls: {};
+  }>;
 }
 
 export interface IRoot {
@@ -253,4 +256,17 @@ export interface IServerClientInformation extends ITitleable {
    * Since https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
    */
   instructions?: string;
+}
+
+export interface ITaskState {
+  taskId: string;
+  status: TaskStatus;
+  statusMessage: string;
+  /**
+   * `null` for infinite.
+   */
+  ttl: number | null;
+  createdAt: string;
+  lastUpdatedAt: string;
+  pollInterval?: number;
 }

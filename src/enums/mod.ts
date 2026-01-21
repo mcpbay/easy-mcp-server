@@ -55,6 +55,11 @@ export enum ProtocolMessage {
    * https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
    */
   ELICITATION_CREATE = "elicitation/create",
+
+  TASKS_LIST = "tasks/list",
+  TASKS_GET = "tasks/get",
+  TASKS_CANCEL = "tasks/cancel",
+  TASKS_RESULT = "tasks/result",
 }
 
 export enum ProtocolNotification {
@@ -70,6 +75,8 @@ export enum ProtocolNotification {
   RESOURCES_LIST_CHANGED = "notifications/resources/list_changed",
   RESOURCES_UPDATED = "notifications/resources/updated",
   ROOTS_CHANGED = "notifications/roots/list_changed",
+  ELICITATION_COMPLETE = "notifications/elicitation/complete",
+  TASKS_STATUS = "notifications/tasks/status",
 }
 
 /**
@@ -90,4 +97,17 @@ export enum ContextModelEntityType {
   PROMPT = "prompt",
   TOOL = "tool",
   RESOURCE = "resource",
+}
+
+export enum TaskStatus {
+  WORKING = "working",
+  INPUT_REQUIRED = "input_required",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+}
+
+export enum Role {
+  ASSISTANT = "assistant",
+  USER = "user",
 }

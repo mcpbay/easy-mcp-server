@@ -6,6 +6,7 @@ import type {
   IResource,
   IResourceContent,
   IRoot,
+  ITaskState,
   ITool,
   IToolResultResourceLinkContent,
 } from "./entities.ts";
@@ -79,7 +80,12 @@ export interface IToolsCallResponse extends
     {
       content: (IPromptMessage & IToolResultResourceLinkContent)[];
       isError: boolean;
-      structuredContent: Record<string, unknown>;
+      structuredContent?: Record<string, unknown>;
+      _meta?: {
+        "io.modelcontextprotocol/related-task"?: {
+          taskId: string;
+        };
+      };
     }
   > {}
 
@@ -135,3 +141,12 @@ export interface IElicitationCreateResponse extends
     | IIElicitationCreateResponseDecline
     | IIElicitationCreateResponseCancel
   > {}
+
+export interface ITasksCreateResponse
+  extends IGenericProtocolResponse<{ task: ITaskState }> {}
+
+export interface ITasksResultResponse
+  extends IGenericProtocolResponse<IToolsCallResponse["result"]> {}
+
+export interface ITasksListResponse
+  extends IGenericProtocolResponse<{ tasks: ITaskState[] }> {}

@@ -5,5 +5,3 @@ export interface IMessageHandlerClass {
 }
 
 export type RequestId = string | number;
-
-export type Role = "assistant" | "user";

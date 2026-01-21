@@ -5,6 +5,7 @@ import type {
   IResourceContent,
   IRoot,
   IServerClientInformation,
+  ITaskState,
   ITool,
 } from "./entities.ts";
 import type {
@@ -50,6 +51,8 @@ export interface INotifiy {
    * Notifies the client about a change in a specific resource.
    */
   resourceUpdated(uri: string): void;
+
+  elicitationComplete(id: string): void;
 }
 
 export type LogFunction = (
@@ -101,7 +104,25 @@ export interface IContextModelOptions {
   /**
    * Requests an elicitation to the client.
    */
-  elicitate(message: string, schema: object): Promise<IElicitationCreateResponse["result"]>;
+  elicitate(
+    message: string,
+    schema: object,
+  ): Promise<IElicitationCreateResponse["result"]>;
+}
+
+export interface IUpdateTaskOptions {
+  message: string;
+  requireProperties: object;
+}
+
+export interface IToolContextModelOptions extends IContextModelOptions {
+  // updateTask(status: ITaskState["status"], options?: Partial<IUpdateTaskOptions>): void;
+  requireInput(): Promise<void>;
+  continueTask(reason?: string): void;
+  abortSignal: AbortSignal;
+  // cancelTask(reason?: string): void;
+  // completeTask(result: IToolsCallResponse["result"]["content"], structuredContent?: IToolsCallResponse["result"]["structuredContent"]): void;
+  // failTask(reason: string): void;
 }
 
 export interface IContextModel {
@@ -130,8 +151,8 @@ export interface IContextModel {
   onClientCallTool?(
     tool: ITool,
     args: Record<string, unknown>,
-    options: IContextModelOptions,
-  ): Promise<IToolsCallResponse["result"]>;
+    options: IToolContextModelOptions,
+  ): Promise<IToolsCallResponse["result"]["content"]>;
 
   onClientListResources?(
     options: IContextModelOptions,

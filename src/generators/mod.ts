@@ -8,10 +8,15 @@ import type {
   IProgressNotification,
   IProtocolErrorResponse,
   ISamplingCreateMessageRequest,
+  ITaskState,
 } from "../interfaces/mod.ts";
 import type { RequestId } from "../types/mod.ts";
 
-export function elicitationCreateRequest(id: RequestId, message: string, schema: object) {
+export function elicitationCreateRequest(
+  id: RequestId,
+  message: string,
+  schema: object,
+) {
   return {
     jsonrpc: "2.0",
     id,
@@ -40,6 +45,14 @@ export function rootsListRequest(id: RequestId) {
   };
 }
 
+export function elicitationCompleteNotification(elicitationId: string) {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.ELICITATION_COMPLETE,
+    params: { elicitationId },
+  };
+}
+
 export function promptsListChangedNotification() {
   return {
     jsonrpc: "2.0",
@@ -51,6 +64,14 @@ export function resourcesListChangedNotification() {
   return {
     jsonrpc: "2.0",
     method: ProtocolNotification.RESOURCES_LIST_CHANGED,
+  };
+}
+
+export function tasksStatusNotification(taskState: ITaskState) {
+  return {
+    jsonrpc: "2.0",
+    method: ProtocolNotification.TASKS_STATUS,
+    params: taskState,
   };
 }
 

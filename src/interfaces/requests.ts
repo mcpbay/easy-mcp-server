@@ -83,6 +83,7 @@ export interface IToolsCallRequest extends IClientMinimalRequestStructure {
   params: {
     name: string;
     arguments: Record<string, unknown>;
+    task?: { ttl?: number };
   } & IRequestParamsMetadata;
 }
 
@@ -219,8 +220,47 @@ export interface ISamplingCreateMessageRequest
 export interface IElicitationCreateRequest
   extends IClientMinimalRequestStructure {
   method: "elicitation/create";
+  params:
+    & ({
+      mode: "form";
+      message: string;
+      requestedSchema: object;
+    } | {
+      mode: "url";
+      message: string;
+      url: string;
+      /**
+       * UUID.
+       */
+      elicitationId: string;
+    })
+    & IRequestParamsMetadata;
+}
+
+export interface ITasksGetRequest extends IClientMinimalRequestStructure {
+  method: "tasks/get";
   params: {
-    message: string;
-    requestedSchema: object;
+    taskId: string;
+  } & IRequestParamsMetadata;
+}
+
+export interface ITasksListRequest extends IClientMinimalRequestStructure {
+  method: "tasks/list";
+  params?: {
+    cursor: string;
+  } & IRequestParamsMetadata;
+}
+
+export interface ITasksCancelRequest extends IClientMinimalRequestStructure {
+  method: "tasks/cancel";
+  params: {
+    taskId: string;
+  } & IRequestParamsMetadata;
+}
+
+export interface ITasksResultRequest extends IClientMinimalRequestStructure {
+  method: "tasks/result";
+  params: {
+    taskId: string;
   } & IRequestParamsMetadata;
 }

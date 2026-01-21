@@ -18,6 +18,10 @@ import type {
   IResourcesReadRequest,
   IResourcesSubscribeRequest,
   IRootsListChangedNotification,
+  ITasksCancelRequest,
+  ITasksGetRequest,
+  ITasksListRequest,
+  ITasksResultRequest,
   IToolsCallRequest,
   IToolsListRequest,
 } from "../interfaces/mod.ts";
@@ -164,4 +168,32 @@ export function isGenericResultResponse(
 ): value is IGenericProtocolResponse<unknown> {
   return isJSONRpc(value) && !("method" in value) && "id" in value &&
     "result" in value;
+}
+
+export function isTasksListRequest(value: unknown) {
+  return isSpecificRequest<ITasksListRequest>(
+    value,
+    ProtocolMessage.TASKS_LIST,
+  );
+}
+
+export function isTasksGetRequest(value: unknown) {
+  return isSpecificRequest<ITasksGetRequest>(
+    value,
+    ProtocolMessage.TASKS_GET,
+  );
+}
+
+export function isTasksCancelRequest(value: unknown) {
+  return isSpecificRequest<ITasksCancelRequest>(
+    value,
+    ProtocolMessage.TASKS_CANCEL,
+  );
+}
+
+export function isTasksResultRequest(value: unknown) {
+  return isSpecificRequest<ITasksResultRequest>(
+    value,
+    ProtocolMessage.TASKS_RESULT,
+  );
 }

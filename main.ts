@@ -9,6 +9,7 @@ import {
 } from "./src/constants/mod.ts";
 import { RequestException } from "./src/exceptions/mod.ts";
 import {
+  elicitationCompleteNotification,
   elicitationCreateRequest,
   errorResponse,
   loggingNotification,
@@ -19,6 +20,7 @@ import {
   rootsListRequest,
   samplingCreateMessageRequest,
   successResponse,
+  tasksStatusNotification,
   toolsListChangedNotification,
 } from "./src/generators/mod.ts";
 import type {
@@ -28,7 +30,6 @@ import type {
   ICompletionMessageResponse,
   IContextModel,
   IContextModelOptions,
-  IElicitationCreateRequest,
   IElicitationCreateResponse,
   IGenericRequest,
   IInitializeResponse,
@@ -43,8 +44,12 @@ import type {
   IResourcesListResponse,
   IResourcesReadResponse,
   IResourcesSubscribeResponse,
-  IRoot,
   IRootsListResponse,
+  ITasksCreateResponse,
+  ITasksListResponse,
+  ITasksResultResponse,
+  ITaskState,
+  IToolContextModelOptions,
   IToolsCallResponse,
   IToolsListResponse,
   LogFunction,
@@ -67,11 +72,23 @@ import {
   isResourcesReadRequest,
   isResourcesSubscribeRequest,
   isRootsListChangedNotification,
+  isTasksCancelRequest,
+  isTasksGetRequest,
+  isTasksListRequest,
+  isTasksResultRequest,
   isToolsCallRequest,
   isToolsListRequest,
 } from "./src/validators/mod.ts";
-import { ContextModelEntityType, LogLevel } from "./src/enums/mod.ts";
+import {
+  ContextModelEntityType,
+  LogLevel,
+  Role,
+  TaskStatus,
+} from "./src/enums/mod.ts";
 import fs from "node:fs";
+import { getUuid } from "./src/utils/get-uuid.util.ts";
+import { assert } from "@std/assert";
+import { ITasksResultRequest } from "./src/interfaces/requests.ts";
 
 function writeLog(line: string) {
   const todayDateString = new Date().toISOString().split("T")[0];
@@ -92,6 +109,12 @@ const LOG_LEVELS: LogLevel[] = [
   LogLevel.CRITICAL,
   LogLevel.ALERT,
   LogLevel.EMERGENCY,
+];
+
+const TASK_TERMINAL_STATUS: TaskStatus[] = [
+  TaskStatus.CANCELLED,
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
 ];
 
 type ProtocolVersion =
@@ -144,21 +167,30 @@ enum DeeferedPromiseType {
 }
 
 export class EasyMCPServer implements IMessageHandlerClass {
-  private readonly jobs: Map<RequestId, AbortController> = new Map();
+  private uniqueId = 1;
   private logLevel: LogLevel | undefined;
+  private protocolVersion: ProtocolVersion = DEFAULT_PROTOCOL_VERSION;
+
+  private readonly tasks = new Map<
+    string,
+    {
+      state: ITaskState;
+      abortController: AbortController;
+      response?: object;
+      promise?: Promise<IToolsCallResponse["result"]["content"]>;
+    }
+  >();
+  private readonly jobs = new Map<RequestId, AbortController>();
   private readonly resourceSubscriptions = new Set<string>();
   private readonly capabilities: ICapabilities = DEFAULT_CAPABILITIES;
-  private readonly isCommuncationInitialized = false;
-  private uniqueId = 1;
   private readonly defeeredPromises = new Map<RequestId, {
     type: DeeferedPromiseType;
     resolve:
-    | ((value: ICompletionMessageResponse["result"]) => void)
-    | ((value: IElicitationCreateResponse["result"]) => void)
-    | ((value: IRootsListResponse["result"]["roots"]) => void);
+      | ((value: ICompletionMessageResponse["result"]) => void)
+      | ((value: IElicitationCreateResponse["result"]) => void)
+      | ((value: IRootsListResponse["result"]["roots"]) => void);
     reject: (reason?: any) => void;
   }>();
-  private protocolVersion: ProtocolVersion = DEFAULT_PROTOCOL_VERSION;
 
   constructor(
     private readonly transport: Transport,
@@ -178,7 +210,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
             true,
           subscribe:
             config?.server?.allowClientSubscribeToIndividualResourceUpdate ??
-            true,
+              true,
         },
         tools: {
           listChanged: config?.server?.sendToolsListChangedNotification ?? true,
@@ -326,6 +358,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
           ),
       ) as Record<LogLevel, LogFunction>,
       notify: {
+        elicitationComplete: (elicitationId: string) => {
+          this.transport.send(elicitationCompleteNotification(elicitationId));
+        },
         promptsListChanged: () => {
           crashIfNot(this.capabilities.prompts.listChanged, {
             code: INTERNAL_ERROR,
@@ -411,7 +446,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         const uniqueId = this.getUniqueId();
 
-        this.transport.send(elicitationCreateRequest(uniqueId, message, schema));
+        this.transport.send(
+          elicitationCreateRequest(uniqueId, message, schema),
+        );
 
         const resultPromise = new Promise<IElicitationCreateResponse["result"]>(
           (resolve, reject) => {
@@ -495,7 +532,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           (await this.contextModel.onClientListCapabilities?.(
             contextOptions,
           )) ??
-          this.capabilities;
+            this.capabilities;
 
         const serverInfo = await this.contextModel.onClientListInformation(
           contextOptions,
@@ -550,6 +587,8 @@ export class EasyMCPServer implements IMessageHandlerClass {
             prompts.splice(cursorIndex, cursorIndex + 100);
           }
         }
+
+        prompts.splice(100);
 
         await this.transport.send(
           successResponse<IPromptsListResponse["result"]>(id, { prompts }),
@@ -606,6 +645,8 @@ export class EasyMCPServer implements IMessageHandlerClass {
           }
         }
 
+        tools.splice(100);
+
         await this.transport.send(
           successResponse<IToolsListResponse["result"]>(id, { tools }),
         );
@@ -613,7 +654,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isToolsCallRequest(message): {
         const { id, params } = message;
-        const { name: toolName, arguments: toolArgs } = params;
+        const { name: toolName, arguments: toolArgs, task } = params;
         const tools = await this.contextModel.onClientListTools?.(
           contextOptions,
         );
@@ -626,20 +667,287 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         crashIfNot(tool, { code: INVALID_PARAMS, message: "No tool" });
 
-        const toolResponse = await this.contextModel.onClientCallTool?.(
+        const taskId = getUuid();
+        const isTaskPresent = !isUndefined(task);
+        const _abortController = new AbortController();
+
+        if (isTaskPresent) {
+          crashIfNot(
+            tool.execution?.taskSupport ||
+              tool.execution?.taskSupport !== "forbidden",
+            {
+              code: INVALID_PARAMS,
+              message: "Tool does not support tasks",
+            },
+          );
+
+          const createdAt = new Date().toISOString();
+          const state: ITaskState = {
+            taskId,
+            createdAt,
+            lastUpdatedAt: createdAt,
+            pollInterval: 5000,
+            status: TaskStatus.WORKING,
+            ttl: task.ttl ?? 15000,
+            statusMessage: "The task has started",
+          };
+
+          // TODO: Modify
+          this.tasks.set(taskId, { state, abortController: _abortController });
+
+          await this.transport.send(
+            successResponse<ITasksCreateResponse["result"]>(id, {
+              task: state,
+            }),
+          );
+        }
+
+        const toolContextOptions: IToolContextModelOptions = {
+          ...contextOptions,
+          abortSignal: _abortController.signal,
+          // Done!
+          // cancelTask: (reason) => {
+          //   if (!isTaskPresent) {
+          //     return;
+          //   }
+
+          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
+          //     code: INTERNAL_ERROR,
+          //     message: `Task '${taskId}' is not working`,
+          //   });
+
+          //   this.updateTaskState(taskId, { status: "cancelled", statusMessage: reason ?? "Task cancelled" });
+
+          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
+          // },
+          // completeTask: (result, structuredContent) => {
+          //   if (!isTaskPresent) {
+          //     return;
+          //   }
+
+          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
+          //     code: INTERNAL_ERROR,
+          //     message: `Task '${taskId}' is not working`,
+          //   });
+
+          //   this.updateTaskState(taskId, { status: "completed", statusMessage: "Task completed" });
+
+          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
+          // },
+          // failTask: (reason) => {
+          //   if (!isTaskPresent) {
+          //     return;
+          //   }
+
+          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
+          //     code: INTERNAL_ERROR,
+          //     message: `Task '${taskId}' is not working`,
+          //   });
+
+          //   this.updateTaskState(taskId, { status: "failed", statusMessage: reason });
+
+          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
+
+          //   const cancelResponse = errorResponse(id, {
+          //     code: INTERNAL_ERROR,
+          //     message: reason,
+          //   });
+
+          //   cancelResponse.result = { _meta: { taskId } };
+
+          //   this.updateTaskResponse(taskId, cancelResponse);
+          // },
+          continueTask: (reason) => {
+            if (!isTaskPresent) {
+              return;
+            }
+
+            crashIfNot(this.getTaskStatus(taskId) !== "working", {
+              code: INTERNAL_ERROR,
+              message: `Task '${taskId}' is not working`,
+            });
+
+            this.updateTaskState(taskId, {
+              status: TaskStatus.WORKING,
+              statusMessage: reason ?? "Task working",
+            });
+
+            this.transport.send(
+              tasksStatusNotification(this.tasks.get(taskId)!.state),
+            );
+          },
+          // TODO: Implement
+          requireInput: async () => {
+            if (!isTaskPresent) {
+              return;
+            }
+          },
+        };
+
+        const toolCall = this.contextModel.onClientCallTool?.(
           tool,
           toolArgs ?? {},
-          contextOptions,
+          toolContextOptions,
         );
 
-        crashIfNot(toolResponse, {
-          code: INTERNAL_ERROR,
-          message: "No tool messages",
+        if (toolCall) {
+          toolCall
+            .then((result) => {
+              this.updateTaskState(taskId, {
+                status: TaskStatus.COMPLETED,
+              });
+
+              this.updateTaskResponse(taskId, result);
+            })
+            .catch((e) => {
+              this.updateTaskState(taskId, {
+                status: TaskStatus.FAILED,
+              });
+
+              const taskErrorResponse = errorResponse(id, {
+                code: e.status,
+                message: e.message,
+                data: e.data,
+              });
+
+              this.updateTaskResponse(taskId, taskErrorResponse);
+            })
+            .finally(() => {
+              if (!isTaskPresent) {
+                return;
+              }
+
+              crashIfNot(
+                TASK_TERMINAL_STATUS.includes(
+                  this.getTaskStatus(taskId),
+                ),
+                {
+                  code: INTERNAL_ERROR,
+                  message:
+                    `Task '${taskId}' status must be 'accepted', 'failed' or 'cancelled' when finished.`,
+                },
+              );
+
+              this.tasks.delete(taskId);
+            });
+
+          this.updateTaskPromise(taskId, toolCall);
+        }
+
+        if (!isTaskPresent) {
+          const toolResponse = await toolCall;
+
+          crashIfNot(toolResponse, {
+            code: INTERNAL_ERROR,
+            message: "No tool messages",
+          });
+
+          await this.transport.send(
+            successResponse<IToolsCallResponse["result"]>(id, {
+              content: toolResponse,
+              isError: false,
+              _meta: {
+                "io.modelcontextprotocol/related-task": { taskId },
+              },
+            }),
+          );
+        }
+        break;
+      }
+      case isTasksCancelRequest(message): {
+        const { id, params } = message;
+        const { taskId } = params;
+
+        crashIfNot(this.tasks.has(taskId), {
+          code: INVALID_PARAMS,
+          message: `Task '${taskId}' not found`,
+        });
+
+        const task = this.tasks.get(params.taskId)!;
+
+        crashIfNot(TASK_TERMINAL_STATUS.includes(task.state.status), {
+          code: INVALID_PARAMS,
+          message:
+            `Cannot cancel task: already in terminal status '${task.state.status}'.`,
+        });
+
+        task.abortController.abort();
+
+        const updatedTask = this.updateTaskState(taskId, {
+          status: TaskStatus.CANCELLED,
+          statusMessage: `Task '${taskId}' cancelled by client`,
         });
 
         await this.transport.send(
-          successResponse<IToolsCallResponse["result"]>(id, toolResponse),
+          successResponse<ITaskState>(id, updatedTask.state),
         );
+        break;
+      }
+      case isTasksListRequest(message): {
+        const { id, params } = message;
+        const tasks = [...this.tasks.values()].map((task) => task.state);
+
+        if (params) {
+          const { cursor } = params;
+          const cursorIndex = tasks.findIndex((p) =>
+            String(getStringUid(p.taskId)) === cursor
+          );
+
+          if (cursorIndex !== -1) {
+            tasks.splice(cursorIndex, cursorIndex + 100);
+          }
+        }
+
+        tasks.splice(100);
+
+        await this.transport.send(
+          successResponse<ITasksListResponse["result"]>(id, {
+            tasks,
+          }),
+        );
+        break;
+      }
+      case isTasksResultRequest(message): {
+        const { id, params } = message;
+        const { taskId } = params;
+
+        crashIfNot(this.tasks.has(taskId), {
+          code: INVALID_PARAMS,
+          message: `Task '${taskId}' not found`,
+        });
+
+        const task = this.tasks.get(taskId)!;
+
+        // Check this!
+        if (TASK_TERMINAL_STATUS.includes(task.state.status)) {
+          return this.transport.send(task.response!);
+        }
+
+        const taskSuccessResponse = await task.promise;
+
+        await this.transport.send(
+          successResponse<IToolsCallResponse["result"]>(id, {
+            content: taskSuccessResponse!,
+            isError: false,
+            _meta: {
+              "io.modelcontextprotocol/related-task": { taskId },
+            },
+          }),
+        );
+        break;
+      }
+      case isTasksGetRequest(message): {
+        const { id, params } = message;
+        const { taskId } = params;
+
+        crashIfNot(this.tasks.has(taskId), {
+          code: INVALID_PARAMS,
+          message: `Task '${taskId}' not found`,
+        });
+
+        const task = this.tasks.get(taskId)!;
+
+        await this.transport.send(successResponse<ITaskState>(id, task.state));
         break;
       }
       case isCompletionCompleteRequest(message): {
@@ -713,6 +1021,8 @@ export class EasyMCPServer implements IMessageHandlerClass {
             resources.splice(cursorIndex, cursorIndex + 100);
           }
         }
+
+        resources.splice(100);
 
         await this.transport.send(
           successResponse<IResourcesListResponse["result"]>(id, { resources }),
@@ -788,7 +1098,8 @@ export class EasyMCPServer implements IMessageHandlerClass {
           // Same thing here...
           defeeredPromise.resolve(roots as any);
         } else if (defeeredPromise.type === DeeferedPromiseType.ELICITATION) {
-          const elicitationResponse = result as IElicitationCreateResponse["result"];
+          const elicitationResponse =
+            result as IElicitationCreateResponse["result"];
 
           // I hate `any`, but here works. Don't use it if you don't know what you're doing!
           defeeredPromise.resolve(elicitationResponse as any);
@@ -861,7 +1172,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
   ) {
     crashIfNot(
       SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) <
-      SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
+        SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
       {
         code: METHOD_NOT_FOUND,
         message,
@@ -871,6 +1182,41 @@ export class EasyMCPServer implements IMessageHandlerClass {
         },
       },
     );
+  }
+
+  private getTaskStatus(taskId: string) {
+    return this.tasks.get(taskId)!.state.status;
+  }
+
+  private updateTaskState(taskId: string, update: Partial<ITaskState>) {
+    const task = this.tasks.get(taskId)!;
+    const updatedTask = {
+      ...task,
+      state: {
+        ...task.state,
+        ...update,
+        lastUpdatedAt: new Date().toISOString(),
+      },
+    };
+    this.tasks.set(taskId, updatedTask);
+
+    return updatedTask;
+  }
+
+  private updateTaskResponse(taskId: string, response: object) {
+    const task = this.tasks.get(taskId)!;
+    this.tasks.set(taskId, {
+      ...task,
+      response,
+    });
+  }
+
+  private updateTaskPromise(taskId: string, promise: Promise<any>) {
+    const task = this.tasks.get(taskId)!;
+    this.tasks.set(taskId, {
+      ...task,
+      promise,
+    });
   }
 }
 
@@ -911,13 +1257,13 @@ class CustomContext implements IContextModel {
       const name = args.name as string ?? "World";
       return {
         messages: [{
-          role: "user",
+          role: Role.USER,
           content: {
             type: "text",
             text: `Generate a greeting for ${name}.`,
           },
         }, {
-          role: "assistant",
+          role: Role.ASSISTANT,
           content: {
             type: "text",
             text: `Hello, ${name}! Welcome to the EasyMCP mock environment.`,
@@ -950,3 +1296,5 @@ const server = new EasyMCPServer(transport, contextModel, {
 writeLog("Server configured...");
 
 server.start();
+
+const a = new AbortController();
