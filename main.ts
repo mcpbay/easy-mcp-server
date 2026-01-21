@@ -47,7 +47,6 @@ import type {
   IRootsListResponse,
   ITasksCreateResponse,
   ITasksListResponse,
-  ITasksResultResponse,
   ITaskState,
   IToolContextModelOptions,
   IToolsCallResponse,
@@ -87,8 +86,6 @@ import {
 } from "./src/enums/mod.ts";
 import fs from "node:fs";
 import { getUuid } from "./src/utils/get-uuid.util.ts";
-import { assert } from "@std/assert";
-import { ITasksResultRequest } from "./src/interfaces/requests.ts";
 
 function writeLog(line: string) {
   const todayDateString = new Date().toISOString().split("T")[0];
@@ -1228,14 +1225,6 @@ class CustomContext implements IContextModel {
     };
   }
 
-  async onClientListCapabilities(options: IContextModelOptions) {
-    return DEFAULT_CAPABILITIES;
-  }
-
-  async onClientConnect(options: IContextModelOptions): Promise<void> {
-    // console.log("MCP client connected and initialized.");
-  }
-
   async onClientListPrompts(options: IContextModelOptions): Promise<IPrompt[]> {
     return [{
       name: "Generate Greeting",
@@ -1296,5 +1285,3 @@ const server = new EasyMCPServer(transport, contextModel, {
 writeLog("Server configured...");
 
 server.start();
-
-const a = new AbortController();
