@@ -1,5 +1,5 @@
-import { LogLevel } from "../enums/mod.ts";
-import { Role } from "../types/mod.ts";
+import { LogLevel, Role } from "../enums/mod.ts";
+import { ProtocolVersion } from "../types/mod.ts";
 import type {
   IClientMinimalRequestStructure,
   IRequestParamsMetadata,
@@ -60,7 +60,7 @@ export interface IPromptsGetRequest extends IClientMinimalRequestStructure {
 export interface IInitializeRequest extends IClientMinimalRequestStructure {
   method: "initialize";
   params: {
-    protocolVersion: string;
+    protocolVersion: ProtocolVersion;
     capabilities: ICapabilities;
     clientInfo: IServerClientInformation;
   } & IRequestParamsMetadata;

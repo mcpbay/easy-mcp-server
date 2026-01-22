@@ -13,10 +13,10 @@ export interface ITitleable {
 export interface IPromptMessage {
   role: Role;
   content:
-    | IPromptMessageTextContent
-    | IPromptMessageImageContent
-    | IPromptMessageResourceContent
-    | IPromptMessageAudioContent;
+  IPromptMessageTextContent
+  | IPromptMessageImageContent
+  | IPromptMessageResourceContent
+  | IPromptMessageAudioContent;
 }
 
 /**
@@ -90,7 +90,7 @@ export interface IPromptArgument {
  */
 export interface IResourceTextContent {
   uri: string;
-  mimeType: "text/plain";
+  mimeType: "text/plain" | "text/markdown" | "text/html" | "text/json" | "text/xml" | "text/yaml" | "text/csv" | "text/tsv";
   text: string;
 }
 
@@ -139,15 +139,15 @@ export interface ITool extends ITitleable {
   /**
    * https://json-schema.org/
    */
-  inputSchema: IInputOutputSchemaProperty;
+  inputSchema: object;
   /**
    * https://modelcontextprotocol.io/specification/2025-06-18/server/tools#output-schema
    */
-  outputSchema?: IInputOutputSchemaProperty;
+  outputSchema?: object;
   /**
    * https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks#tool-level-negotiation
    */
-  execution?: { taskSupport: "required" | "optional" | "forbidden" };
+  execution?: { taskSupport: "required" | "optional" | "forbidden"; };
   /**
    * https://modelcontextprotocol.io/specification/2025-03-26/changelog
    */
@@ -213,7 +213,7 @@ export interface ICapabilities {
     lists: {};
     cancel: {};
     requests: {
-      tools: { call: {} };
+      tools: { call: {}; };
     };
   }>;
   elicitation?: Partial<{

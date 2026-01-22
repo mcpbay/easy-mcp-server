@@ -1,10 +1,21 @@
 {
+  "name": "@mcpbay/mcpserver",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./types": "./types.ts",
+    "./utils": "./utils.ts",
+    "./validators": "./validators.ts",
+    "./transports": "./transports.ts",
+    "./enums": "./enums.ts"
+  },
   "tasks": {
     "dev": "deno run --watch -A --env-file main.ts"
   },
   "imports": {
     "@online/get-string-uid": "jsr:@online/get-string-uid@^1.0.1",
     "@online/is": "jsr:@online/is@^0.0.6",
-    "@std/assert": "jsr:@std/assert@1"
+    "@std/assert": "jsr:@std/assert@1",
+    "zod": "npm:zod@^4.3.5"
   }
 }

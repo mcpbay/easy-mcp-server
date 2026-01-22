@@ -1,0 +1,18 @@
+{
+  "mcp": {
+    "allowed": ["easymcp"]
+  },
+  "mcpServers": {
+    "easymcp": {
+      "timeout": 60,
+      "type": "stdio",
+      "command": "deno",
+      "trust": true,
+      "args": [
+        "run",
+        "-A",
+        "e:/Git/profit/node/mcpbay/easymcp/main.ts"
+      ]
+    }
+  }
+}

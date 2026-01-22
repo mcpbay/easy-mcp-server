@@ -141,7 +141,7 @@ export interface IContextModel {
   onClientListPrompts?(options: IContextModelOptions): Promise<IPrompt[]>;
 
   onClientGetPrompt?(
-    promt: IPrompt,
+    prompt: IPrompt,
     args: Record<string, unknown>,
     options: IContextModelOptions,
   ): Promise<IPromptsGetResponse["result"]>;
