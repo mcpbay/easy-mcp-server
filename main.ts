@@ -1,7 +1,7 @@
-import { EasyMCPServer } from "@mcpbay/mcpserver";
+import { EasyMCPServer, writeLog } from "@mcpbay/mcpserver";
 import { StdioTransport } from "@mcpbay/mcpserver/transports";
-import { IContextModel, IContextModelOptions, IPrompt, IPromptsGetResponse, IServerClientInformation } from "@mcpbay/mcpserver/types";
-import { Role } from "@mcpbay/mcpserver/enums";
+import { IContextModel, IContextModelOptions, IPrompt, IPromptsGetResponse, IServerClientInformation, ICompletionCompleteRequest, ICompletionCompleteResponse, IResource, IResourceContent, IResourcesListResponse } from "@mcpbay/mcpserver/types";
+import { Role, ContextModelEntityType } from "@mcpbay/mcpserver/enums";
 
 class ContextModel implements IContextModel {
 
@@ -13,7 +13,7 @@ class ContextModel implements IContextModel {
     };
   }
 
-  async onClientListPrompts?(options: IContextModelOptions): Promise<IPrompt[]> {
+  async onClientListPrompts(options: IContextModelOptions): Promise<IPrompt[]> {
     return [
       {
         name: "echo-prompt",
@@ -37,7 +37,7 @@ class ContextModel implements IContextModel {
             role: Role.USER,
             content: {
               type: 'text',
-              text: args['example-argument'] as string
+              text: `send me the "`+ args['example-argument'] as string + `" message.`
             }
           }
         ]
@@ -58,17 +58,54 @@ class ContextModel implements IContextModel {
   //   throw new Error("Method not implemented.");
   // }
 
-  // onClientListResources?(options: IContextModelOptions): Promise<IResourcesListResponse["result"]["resources"]> {
-  //   throw new Error("Method not implemented.");
-  // }
+  async onClientListResources(options: IContextModelOptions): Promise<IResourcesListResponse["result"]["resources"]> {
+    const resource: IResource = {
+      name: "README.md",
+      description: "Archivo de documentación principal",
+      link: "mcp://easymcp/readme",
+      mimeType: "text/markdown",
+    };
 
-  // onClientReadResource?(resourceUri: string, options: IContextModelOptions): Promise<IResourceContent[]> {
-  //   throw new Error("Method not implemented.");
-  // }
+    return [resource];
+  }
 
-  // onClientRequestsCompletion?(entityType: ContextModelEntityType, args: ICompletionCompleteRequest["params"]["argument"], options: IContextModelOptions): Promise<ICompletionCompleteResponse["result"]["completion"]> {
-  //   throw new Error("Method not implemented.");
-  // }
+  async onClientReadResource(resourceUri: string, options: IContextModelOptions): Promise<IResourceContent[]> {
+    const RESOURCE_URI = "mcp://easymcp/readme";
+
+    if (resourceUri === RESOURCE_URI) {
+      return [
+        {
+          uri: RESOURCE_URI,
+          mimeType: "text/markdown",
+          text: "# Ejemplo de README",
+        },
+        {
+          uri: RESOURCE_URI,
+          mimeType: "text/markdown",
+          text: "Este es el contenido de un recurso exportado por el MCP para demostrar mejores prácticas en TypeScript.",
+        }
+      ];
+    }
+
+    return [];
+  }
+
+  async onClientRequestsCompletion?(entityType: ContextModelEntityType, args: ICompletionCompleteRequest["params"]["argument"], options: IContextModelOptions): Promise<ICompletionCompleteResponse["result"]["completion"]> {
+    writeLog(`onClientRequestsCompletion: entityType: ${entityType}, args: ${JSON.stringify(args)}`);
+    if (entityType === ContextModelEntityType.PROMPT && args.name === 'example-argument') {
+      return {
+        values: ['example-argument'],
+        hasMore: false,
+        total: 1
+      };
+    }
+
+    return {
+      values: [],
+      hasMore: false,
+      total: 0
+    };
+  }
 
   // onClientConnect?(options: IContextModelOptions): Promise<void> {
   //   throw new Error("Method not implemented.");

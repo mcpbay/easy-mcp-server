@@ -79,16 +79,6 @@ import {
 import fs from "node:fs";
 import { getUuid } from "./src/utils/get-uuid.util.ts";
 
-function writeLog(line: string) {
-  const todayDateString = new Date().toISOString().split("T")[0];
-
-  Deno.writeTextFileSync(
-    `E:/Git/profit/node/mcpbay/easymcp/logs/${todayDateString}.log`,
-    `${line}\n`,
-    { append: true },
-  );
-}
-
 const LOG_LEVELS: LogLevel[] = [
   LogLevel.DEBUG,
   LogLevel.INFO,
@@ -214,16 +204,12 @@ export class EasyMCPServer implements IMessageHandlerClass {
     const possibleId: RequestId | undefined =
       (message as IClientMinimalRequestStructure)?.id;
 
-    writeLog("Before SetTimeout...");
-
     setTimeout(
       () => {
         abortController.abort();
       },
       this.config?.timeout || 10000,
     );
-
-    writeLog("After SetTimeout...");
 
     abortController.signal.addEventListener("abort", () => {
       if (!possibleId) {
@@ -236,8 +222,6 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }));
     });
 
-    writeLog("Executing messageHandler...");
-
     const isCancellableRequest = isGenericRequest(message) &&
       !isInitializeRequest(message);
 
@@ -248,17 +232,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
       await this.internalMessageHandler(message, abortController);
     } catch (e) {
-      writeLog("Error stack: " + JSON.stringify((e as Error).stack));
-      writeLog("Error message: " + JSON.stringify((e as Error).message));
-
       if (e instanceof RequestException) {
-        writeLog("possibleId: " + possibleId);
-
         if (isUndefined(possibleId)) {
           return;
         }
-
-        writeLog("Error data: " + JSON.stringify(e.data));
 
         this.transport.send(errorResponse(possibleId, {
           code: e.status,
@@ -489,14 +466,10 @@ export class EasyMCPServer implements IMessageHandlerClass {
       },
     };
 
-    writeLog("Message handler of: " + JSON.stringify(message));
-
     switch (true) {
       case isInitializeRequest(message): {
         const { id, params } = message;
         const { protocolVersion: requestedProtocolVersion } = params;
-
-        writeLog("Initialize request");
 
         crashIfNot(
           SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion),
@@ -510,22 +483,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
           },
         );
 
-        writeLog(`Using protocol version: ${requestedProtocolVersion}`);
         this.setProtocolVersion(requestedProtocolVersion);
 
-        writeLog(`Checking capabilities...`);
         const capabilities =
           (await this.contextModel.onClientListCapabilities?.(
             contextOptions,
           )) ??
           this.capabilities;
 
-        writeLog(`Capabiltiies: ` + JSON.stringify(capabilities));
-
         const serverInfo =
           await this.contextModel.onClientListInformation(contextOptions);
-
-        writeLog(`Server Info: ` + JSON.stringify(serverInfo));
 
         const response = successResponse<IInitializeResponse["result"]>(
           id,
@@ -535,8 +502,6 @@ export class EasyMCPServer implements IMessageHandlerClass {
             serverInfo,
           },
         );
-
-        writeLog("Responsing... " + JSON.stringify(response));
 
         this.setCapabilities(capabilities);
         await this.transport.send(response);
@@ -617,9 +582,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isToolsListRequest(message): {
         const { id, params } = message;
-        const tools = await this.contextModel.onClientListTools?.(
+        const tools = (await this.contextModel.onClientListTools?.(
           contextOptions,
-        );
+        )) ?? [];
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No prompts" });
 
@@ -1110,7 +1075,6 @@ export class EasyMCPServer implements IMessageHandlerClass {
   }
 
   public async start() {
-    writeLog("Starting transport...");
     await this.transport.onInitialize(this);
   }
 
