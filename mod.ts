@@ -1,4 +1,3 @@
-/// <reference lib="deno.ns" />
 import { getStringUid } from "@online/get-string-uid";
 import { isUndefined } from "@online/is";
 import type { Transport } from "./src/abstractions/mod.ts";
