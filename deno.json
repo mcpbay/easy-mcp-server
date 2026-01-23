@@ -27,5 +27,8 @@
   },
   "fmt": {
     "exclude": ["README.md"]
+  },
+  "publish": {
+    "exclude": ["opencode.jsonc", ".vscode"]
   }
 }
