@@ -9,6 +9,7 @@
     "./transports": "./transports.ts",
     "./enums": "./enums.ts"
   },
+  "license": "MIT",
   "tasks": {
     "dev": "deno run --watch -A --env-file main.ts"
   },
