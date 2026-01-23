@@ -659,58 +659,6 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const toolContextOptions: IToolContextModelOptions = {
           ...contextOptions,
           abortSignal: _abortController.signal,
-          // Done!
-          // cancelTask: (reason) => {
-          //   if (!isTaskPresent) {
-          //     return;
-          //   }
-
-          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
-          //     code: INTERNAL_ERROR,
-          //     message: `Task '${taskId}' is not working`,
-          //   });
-
-          //   this.updateTaskState(taskId, { status: "cancelled", statusMessage: reason ?? "Task cancelled" });
-
-          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
-          // },
-          // completeTask: (result, structuredContent) => {
-          //   if (!isTaskPresent) {
-          //     return;
-          //   }
-
-          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
-          //     code: INTERNAL_ERROR,
-          //     message: `Task '${taskId}' is not working`,
-          //   });
-
-          //   this.updateTaskState(taskId, { status: "completed", statusMessage: "Task completed" });
-
-          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
-          // },
-          // failTask: (reason) => {
-          //   if (!isTaskPresent) {
-          //     return;
-          //   }
-
-          //   crashIfNot(this.getTaskStatus(taskId) === "working", {
-          //     code: INTERNAL_ERROR,
-          //     message: `Task '${taskId}' is not working`,
-          //   });
-
-          //   this.updateTaskState(taskId, { status: "failed", statusMessage: reason });
-
-          //   this.transport.send(tasksStatusNotification(this.tasks.get(taskId)!.state));
-
-          //   const cancelResponse = errorResponse(id, {
-          //     code: INTERNAL_ERROR,
-          //     message: reason,
-          //   });
-
-          //   cancelResponse.result = { _meta: { taskId } };
-
-          //   this.updateTaskResponse(taskId, cancelResponse);
-          // },
           continueTask: (reason) => {
             if (!isTaskPresent) {
               return;
