@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { getStringUid } from "@online/get-string-uid";
 import { isUndefined } from "@online/is";
-import { Transport } from "./src/abstractions/mod.ts";
+import type { Transport } from "./src/abstractions/mod.ts";
 import {
   INTERNAL_ERROR,
   INVALID_PARAMS,
@@ -25,7 +25,8 @@ import {
 } from "./src/generators/mod.ts";
 import type {
   ICapabilities,
-  IClientMinimalRequestStructure, ICompletionCompleteResponse,
+  IClientMinimalRequestStructure,
+  ICompletionCompleteResponse,
   ICompletionMessageResponse,
   IContextModel,
   IContextModelOptions,
@@ -35,20 +36,27 @@ import type {
   ILoggingSetLevelResponse,
   ILogOptions,
   IPingResponse,
-  IProgressOptions, IPromptsGetResponse,
+  IProgressOptions,
+  IPromptsGetResponse,
   IPromptsListResponse,
-  IRequestParamsMetadata, IResourcesListResponse,
+  IRequestParamsMetadata,
+  IResourcesListResponse,
   IResourcesReadResponse,
   IResourcesSubscribeResponse,
   IRootsListResponse,
   ITasksCreateResponse,
   ITasksListResponse,
-  ITaskState, IToolContextModelOptions,
+  ITaskState,
+  IToolContextModelOptions,
   IToolsCallResponse,
   IToolsListResponse,
-  LogFunction
+  LogFunction,
 } from "./src/interfaces/mod.ts";
-import type { IMessageHandlerClass, ProtocolVersion, RequestId } from "./src/types/mod.ts";
+import type {
+  IMessageHandlerClass,
+  ProtocolVersion,
+  RequestId,
+} from "./src/types/mod.ts";
 import { crashIfNot, textToSlug } from "./src/utils/mod.ts";
 import {
   isCancelledNotification,
@@ -74,7 +82,8 @@ import {
 } from "./src/validators/mod.ts";
 import {
   ContextModelEntityType,
-  LogLevel, TaskStatus
+  LogLevel,
+  TaskStatus,
 } from "./src/enums/mod.ts";
 import fs from "node:fs";
 import { getUuid } from "./src/utils/get-uuid.util.ts";
@@ -96,15 +105,13 @@ const TASK_TERMINAL_STATUS: TaskStatus[] = [
   TaskStatus.FAILED,
 ];
 
-
-
 const SUPPORTED_PROTOCOL_VERSIONS: readonly ProtocolVersion[] = Object.freeze<
   ProtocolVersion[]
 >([
   "2024-11-05",
   "2025-03-26",
   "2025-06-18",
-  "2025-11-25"
+  "2025-11-25",
 ]);
 const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = "2025-11-25" as const;
 const DEFAULT_CAPABILITIES: ICapabilities = Object.freeze<ICapabilities>(
@@ -162,9 +169,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
   private readonly defeeredPromises = new Map<RequestId, {
     type: DeeferedPromiseType;
     resolve:
-    | ((value: ICompletionMessageResponse["result"]) => void)
-    | ((value: IElicitationCreateResponse["result"]) => void)
-    | ((value: IRootsListResponse["result"]["roots"]) => void);
+      | ((value: ICompletionMessageResponse["result"]) => void)
+      | ((value: IElicitationCreateResponse["result"]) => void)
+      | ((value: IRootsListResponse["result"]["roots"]) => void);
     reject: (reason?: any) => void;
   }>();
 
@@ -186,7 +193,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
             true,
           subscribe:
             config?.server?.allowClientSubscribeToIndividualResourceUpdate ??
-            true,
+              true,
         },
         tools: {
           listChanged: config?.server?.sendToolsListChangedNotification ?? true,
@@ -489,10 +496,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
           (await this.contextModel.onClientListCapabilities?.(
             contextOptions,
           )) ??
-          this.capabilities;
+            this.capabilities;
 
-        const serverInfo =
-          await this.contextModel.onClientListInformation(contextOptions);
+        const serverInfo = await this.contextModel.onClientListInformation(
+          contextOptions,
+        );
 
         const response = successResponse<IInitializeResponse["result"]>(
           id,
@@ -628,7 +636,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         if (isTaskPresent) {
           crashIfNot(
             tool.execution?.taskSupport ||
-            tool.execution?.taskSupport !== "forbidden",
+              tool.execution?.taskSupport !== "forbidden",
             {
               code: INVALID_PARAMS,
               message: "Tool does not support tasks",
@@ -1010,7 +1018,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       default: {
         if (isGenericRequest(message)) {
-          const { id, method } = message;
+          const { method } = message;
 
           crashIfNot(false, {
             code: INTERNAL_ERROR,
@@ -1073,7 +1081,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
   ) {
     crashIfNot(
       SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) <
-      SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
+        SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
       {
         code: METHOD_NOT_FOUND,
         message,

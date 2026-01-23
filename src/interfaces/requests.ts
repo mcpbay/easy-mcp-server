@@ -1,10 +1,10 @@
-import { LogLevel, Role } from "../enums/mod.ts";
-import { ProtocolVersion } from "../types/mod.ts";
+import type { LogLevel, Role } from "../enums/mod.ts";
+import type { ProtocolVersion } from "../types/mod.ts";
 import type {
   IClientMinimalRequestStructure,
   IRequestParamsMetadata,
 } from "./common.ts";
-import {
+import type {
   ICapabilities,
   IPromptMessageImageContent,
   IPromptMessageTextContent,

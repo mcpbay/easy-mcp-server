@@ -1,16 +1,14 @@
-import { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
+import type { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
 import type {
   ICapabilities,
   IPrompt,
   IResourceContent,
   IRoot,
   IServerClientInformation,
-  ITaskState,
   ITool,
 } from "./entities.ts";
 import type {
   ICompletionCompleteRequest,
-  IInitializeRequest,
   ISamplingCreateMessageRequest,
   ISamplingMessageContent,
 } from "./requests.ts";

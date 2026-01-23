@@ -1,5 +1,5 @@
 import {
-  LogLevel,
+  type LogLevel,
   ProtocolMessage,
   ProtocolNotification,
 } from "../enums/mod.ts";

@@ -1,5 +1,5 @@
 import { RequestException } from "../exceptions/mod.ts";
-import { IProtocolErrorResponse } from "../interfaces/mod.ts";
+import type { IProtocolErrorResponse } from "../interfaces/mod.ts";
 
 export interface ICrashIfNotOptions {
   reportToClient?: boolean;

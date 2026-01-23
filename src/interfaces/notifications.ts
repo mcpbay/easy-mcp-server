@@ -1,9 +1,6 @@
-import { LogLevel } from "../enums/mod.ts";
-import { RequestId } from "../types/mod.ts";
-import type {
-  IClientMinimalRequestStructure,
-  IGenericNotification,
-} from "./common.ts";
+import type { LogLevel } from "../enums/mod.ts";
+import type { RequestId } from "../types/mod.ts";
+import type { IGenericNotification } from "./common.ts";
 
 /**
  * https://modelcontextprotocol.info/specification/2024-11-05/server/prompts/

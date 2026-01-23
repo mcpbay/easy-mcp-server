@@ -18,5 +18,14 @@
     "@online/is": "jsr:@online/is@^0.0.6",
     "@std/assert": "jsr:@std/assert@1",
     "zod": "npm:zod@^4.3.5"
+  },
+  "lint": {
+    "exclude": ["README.md"],
+    "rules": {
+      "exclude": ["require-await", "no-explicit-any", "ban-types"]
+    }
+  },
+  "fmt": {
+    "exclude": ["README.md"]
   }
 }

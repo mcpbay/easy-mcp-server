@@ -18,7 +18,7 @@ export class StdioTransport extends Transport {
             try {
               const json = JSON.parse(message);
               return json;
-            } catch (e) {
+            } catch {
               console.error("Invalid JSON:", message);
               return {};
             }

@@ -1,4 +1,4 @@
-import { RequestId } from "../types/mod.ts";
+import type { RequestId } from "../types/mod.ts";
 
 export interface IClientMinimalRequestStructure {
   jsonrpc: "2.0";
