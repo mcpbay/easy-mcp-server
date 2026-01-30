@@ -149,6 +149,7 @@ enum DeeferedPromiseType {
 }
 
 export class EasyMCPServer implements IMessageHandlerClass {
+  private isInitialized = false;
   private uniqueId = 1;
   private logLevel: LogLevel | undefined;
   private protocolVersion: ProtocolVersion = DEFAULT_PROTOCOL_VERSION;
@@ -168,9 +169,9 @@ export class EasyMCPServer implements IMessageHandlerClass {
   private readonly defeeredPromises = new Map<RequestId, {
     type: DeeferedPromiseType;
     resolve:
-      | ((value: ICompletionMessageResponse["result"]) => void)
-      | ((value: IElicitationCreateResponse["result"]) => void)
-      | ((value: IRootsListResponse["result"]["roots"]) => void);
+    | ((value: ICompletionMessageResponse["result"]) => void)
+    | ((value: IElicitationCreateResponse["result"]) => void)
+    | ((value: IRootsListResponse["result"]["roots"]) => void);
     reject: (reason?: any) => void;
   }>();
 
@@ -192,7 +193,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
             true,
           subscribe:
             config?.server?.allowClientSubscribeToIndividualResourceUpdate ??
-              true,
+            true,
         },
         tools: {
           listChanged: config?.server?.sendToolsListChangedNotification ?? true,
@@ -288,6 +289,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
     message: object,
     abortController: AbortController,
   ) {
+    await this.start();
     const contextOptions: IContextModelOptions = {
       abortController,
       progress: async (
@@ -495,7 +497,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
           (await this.contextModel.onClientListCapabilities?.(
             contextOptions,
           )) ??
-            this.capabilities;
+          this.capabilities;
 
         const serverInfo = await this.contextModel.onClientListInformation(
           contextOptions,
@@ -635,7 +637,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
         if (isTaskPresent) {
           crashIfNot(
             tool.execution?.taskSupport ||
-              tool.execution?.taskSupport !== "forbidden",
+            tool.execution?.taskSupport !== "forbidden",
             {
               code: INVALID_PARAMS,
               message: "Tool does not support tasks",
@@ -1030,7 +1032,13 @@ export class EasyMCPServer implements IMessageHandlerClass {
   }
 
   public async start() {
+    if (this.isInitialized) {
+      return;
+    }
+
     await this.transport.onInitialize(this);
+    await this.contextModel.onInitialize(this);
+    this.isInitialized = true;
   }
 
   private registerRequestJob(id: RequestId, abortController: AbortController) {
@@ -1080,7 +1088,7 @@ export class EasyMCPServer implements IMessageHandlerClass {
   ) {
     crashIfNot(
       SUPPORTED_PROTOCOL_VERSIONS.indexOf(this.protocolVersion) <
-        SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
+      SUPPORTED_PROTOCOL_VERSIONS.indexOf(protocolVersion),
       {
         code: METHOD_NOT_FOUND,
         message,

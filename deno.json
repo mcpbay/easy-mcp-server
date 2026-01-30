@@ -1,6 +1,6 @@
 {
   "name": "@mcpbay/easy-mcp-server",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "exports": {
     ".": "./mod.ts",
     "./types": "./types.ts",

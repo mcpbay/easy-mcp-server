@@ -1,4 +1,5 @@
 import type { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
+import { IMessageHandlerClass } from "../types/mod.ts";
 import type {
   ICapabilities,
   IPrompt,
@@ -124,6 +125,8 @@ export interface IToolContextModelOptions extends IContextModelOptions {
 }
 
 export interface IContextModel {
+  onInitialize(instance: IMessageHandlerClass): Promise<void>;
+
   onClientListInformation(
     options: IContextModelOptions,
   ): Promise<IServerClientInformation>;
