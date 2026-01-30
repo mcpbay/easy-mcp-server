@@ -7,6 +7,7 @@
     "./utils": "./utils.ts",
     "./validators": "./validators.ts",
     "./transports": "./transports.ts",
+    "./constants": "./constants.ts",
     "./enums": "./enums.ts"
   },
   "license": "MIT",
