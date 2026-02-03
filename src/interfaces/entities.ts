@@ -120,9 +120,9 @@ export type IResourceContent = IResourceTextContent | IResourceFileContent;
  * https://modelcontextprotocol.info/specification/2024-11-05/server/resources/
  */
 export interface IResource extends ITitleable {
+  uri: string;
   name: string;
   description: string;
-  link: string;
   mimeType: string;
 }
 
