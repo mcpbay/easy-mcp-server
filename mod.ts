@@ -747,16 +747,19 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         if (!isTaskPresent) {
           const toolResponse = await toolCall;
+          const content = toolResponse instanceof Array ? toolResponse : toolResponse?.content;
+          const structuredOutput = toolResponse instanceof Array ? void 0 : toolResponse?.structuredContent;
 
-          crashIfNot(toolResponse, {
+          crashIfNot(content, {
             code: INTERNAL_ERROR,
             message: "No tool messages",
           });
 
           await this.transport.send(
             successResponse<IToolsCallResponse["result"]>(id, {
-              content: toolResponse,
+              content,
               isError: false,
+              structuredContent: structuredOutput,
               _meta: {
                 "io.modelcontextprotocol/related-task": { taskId },
               },

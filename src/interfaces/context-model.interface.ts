@@ -114,6 +114,16 @@ export interface IUpdateTaskOptions {
   requireProperties: object;
 }
 
+export type ToolCallResponse = IToolsCallResponse["result"]["content"] | {
+  content: IToolsCallResponse["result"]["content"];
+  structuredContent: IToolsCallResponse["result"]["structuredContent"];
+};
+
+export type PromptsGetResponse = IPromptsGetResponse["result"];
+export type ResourcesListResponse = IResourcesListResponse["result"]["resources"];
+export type CompletionCompleteArgs = ICompletionCompleteRequest["params"]["argument"];
+export type CompletionCompleteResponse = ICompletionCompleteResponse["result"]["completion"];
+
 export interface IToolContextModelOptions extends IContextModelOptions {
   // updateTask(status: ITaskState["status"], options?: Partial<IUpdateTaskOptions>): void;
   requireInput(): Promise<void>;
@@ -145,7 +155,7 @@ export interface IContextModel {
     prompt: IPrompt,
     args: Record<string, unknown>,
     options: IContextModelOptions,
-  ): Promise<IPromptsGetResponse["result"]>;
+  ): Promise<PromptsGetResponse>;
 
   onClientListTools?(options: IContextModelOptions): Promise<ITool[]>;
 
@@ -153,11 +163,11 @@ export interface IContextModel {
     tool: ITool,
     args: Record<string, unknown>,
     options: IToolContextModelOptions,
-  ): Promise<IToolsCallResponse["result"]["content"]>;
+  ): Promise<ToolCallResponse>;
 
   onClientListResources?(
     options: IContextModelOptions,
-  ): Promise<IResourcesListResponse["result"]["resources"]>;
+  ): Promise<ResourcesListResponse>;
 
   onClientReadResource?(
     resourceUri: string,
@@ -166,9 +176,9 @@ export interface IContextModel {
 
   onClientRequestsCompletion?(
     entityType: ContextModelEntityType,
-    args: ICompletionCompleteRequest["params"]["argument"],
+    args: CompletionCompleteArgs,
     options: IContextModelOptions,
-  ): Promise<ICompletionCompleteResponse["result"]["completion"]>;
+  ): Promise<CompletionCompleteResponse>;
 
   onClientConnect?(options: IContextModelOptions): Promise<void>;
   /**
