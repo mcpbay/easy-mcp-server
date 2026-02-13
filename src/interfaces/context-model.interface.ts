@@ -1,5 +1,5 @@
 import type { ContextModelEntityType, LogLevel } from "../enums/mod.ts";
-import { IMessageHandlerClass } from "../types/mod.ts";
+import type { IMessageHandlerClass } from "../types/mod.ts";
 import type {
   ICapabilities,
   IPrompt,
@@ -120,9 +120,12 @@ export type ToolCallResponse = IToolsCallResponse["result"]["content"] | {
 };
 
 export type PromptsGetResponse = IPromptsGetResponse["result"];
-export type ResourcesListResponse = IResourcesListResponse["result"]["resources"];
-export type CompletionCompleteArgs = ICompletionCompleteRequest["params"]["argument"];
-export type CompletionCompleteResponse = ICompletionCompleteResponse["result"]["completion"];
+export type ResourcesListResponse =
+  IResourcesListResponse["result"]["resources"];
+export type CompletionCompleteArgs =
+  ICompletionCompleteRequest["params"]["argument"];
+export type CompletionCompleteResponse =
+  ICompletionCompleteResponse["result"]["completion"];
 
 export interface IToolContextModelOptions extends IContextModelOptions {
   // updateTask(status: ITaskState["status"], options?: Partial<IUpdateTaskOptions>): void;
