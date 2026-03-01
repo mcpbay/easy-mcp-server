@@ -188,4 +188,9 @@ export interface IContextModel {
    * Called when client notifies roots changed on its side.
    */
   onClientRootsChanged?(options: IContextModelOptions): Promise<void>;
+
+  onInternalDebugInformation?(
+    message: string | object,
+    level: LogLevel,
+  ): Promise<void>;
 }
