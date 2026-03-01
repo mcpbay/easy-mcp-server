@@ -210,18 +210,31 @@ export class EasyMCPServer implements IMessageHandlerClass {
     const abortController = new AbortController();
     const possibleId: RequestId | undefined =
       (message as IClientMinimalRequestStructure)?.id;
+    const timeoutTime = this.config?.timeout || 10000;
 
-    setTimeout(
-      () => {
-        abortController.abort();
-      },
-      this.config?.timeout || 10000,
+    await this.contextModel.onInternalDebugInformation?.(
+      "Message received from client",
+      LogLevel.DEBUG,
+    );
+    await this.contextModel.onInternalDebugInformation?.(
+      message,
+      LogLevel.DEBUG,
+    );
+
+    const timeoutHandler = setTimeout(
+      () => abortController.abort(),
+      timeoutTime,
     );
 
     abortController.signal.addEventListener("abort", () => {
       if (!possibleId) {
         return;
       }
+
+      this.contextModel.onInternalDebugInformation?.(
+        `Timeout (${timeoutTime}ms)`,
+        LogLevel.ERROR,
+      );
 
       this.transport.send(errorResponse(possibleId, {
         code: INTERNAL_ERROR,
@@ -234,16 +247,43 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
     try {
       if (isCancellableRequest) {
-        this.registerRequestJob(message.id, abortController);
+        await this.contextModel.onInternalDebugInformation?.(
+          "Is cancellable request",
+          LogLevel.INFO,
+        );
+
+        await this.contextModel.onInternalDebugInformation?.(
+          `Registered job for id "${possibleId}"`,
+          LogLevel.INFO,
+        );
+        this.registerRequestJob(possibleId, abortController);
       }
 
       await this.internalMessageHandler(message, abortController);
     } catch (e) {
+      await this.contextModel.onInternalDebugInformation?.(
+        "Exception detected!",
+        LogLevel.INFO,
+      );
+
       if (e instanceof RequestException) {
+        await this.contextModel.onInternalDebugInformation?.(
+          "Exception instanceof RequestException",
+          LogLevel.INFO,
+        );
+
         if (isUndefined(possibleId)) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "No ID",
+            LogLevel.INFO,
+          );
           return;
         }
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Send error response",
+          LogLevel.INFO,
+        );
         this.transport.send(errorResponse(possibleId, {
           code: e.status,
           message: e.message,
@@ -252,8 +292,14 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
     } finally {
       if (isCancellableRequest) {
-        this.unregisterRequestJob(message.id);
+        await this.contextModel.onInternalDebugInformation?.(
+          "Unregistered job",
+          LogLevel.INFO,
+        );
+        this.unregisterRequestJob(possibleId);
       }
+
+      clearTimeout(timeoutHandler);
     }
   }
 
@@ -474,10 +520,20 @@ export class EasyMCPServer implements IMessageHandlerClass {
       },
     };
 
+    await this.contextModel.onInternalDebugInformation?.(
+      "Handling Message",
+      LogLevel.DEBUG,
+    );
+
     switch (true) {
       case isInitializeRequest(message): {
         const { id, params } = message;
         const { protocolVersion: requestedProtocolVersion } = params;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isInitializeRequest",
+          LogLevel.DEBUG,
+        );
 
         crashIfNot(
           SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion),
@@ -493,11 +549,25 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         this.setProtocolVersion(requestedProtocolVersion);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          `Protocol "${requestedProtocolVersion}"`,
+          LogLevel.DEBUG,
+        );
+
         const capabilities =
           (await this.contextModel.onClientListCapabilities?.(
             contextOptions,
           )) ??
             this.capabilities;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Capabilities",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          capabilities,
+          LogLevel.DEBUG,
+        );
 
         const serverInfo = await this.contextModel.onClientListInformation(
           contextOptions,
@@ -513,20 +583,44 @@ export class EasyMCPServer implements IMessageHandlerClass {
         );
 
         this.setCapabilities(capabilities);
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Response",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          response,
+          LogLevel.DEBUG,
+        );
         await this.transport.send(response);
         break;
       }
       case isInitializedNotification(message): {
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isInitializedNotification",
+          LogLevel.DEBUG,
+        );
+
         this.initializeCommunication();
         await this.contextModel.onClientConnect?.(contextOptions);
         break;
       }
       case isCancelledNotification(message): {
         const { params } = message;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isCancelledNotification",
+          LogLevel.DEBUG,
+        );
+
         this.cancelRequestJob(params.requestId);
         break;
       }
       case isPingRequest(message): {
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isPingRequest",
+          LogLevel.DEBUG,
+        );
         await this.transport.send(
           successResponse<IPingResponse["result"]>(message.id, {}),
         );
@@ -534,13 +628,37 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isPromptsListRequest(message): {
         const { id, params } = message;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isPromptsListRequest",
+          LogLevel.DEBUG,
+        );
+
         const prompts = await this.contextModel.onClientListPrompts?.(
           contextOptions,
         );
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Prompts listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          prompts,
+          LogLevel.DEBUG,
+        );
+
         if (params) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Params received",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            params,
+            LogLevel.DEBUG,
+          );
+
           const { cursor } = params;
           const cursorIndex = prompts.findIndex((p) =>
             String(getStringUid(p.name)) === cursor
@@ -553,6 +671,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         prompts.splice(100);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Spliced prompts",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          prompts,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<IPromptsListResponse["result"]>(id, { prompts }),
         );
@@ -561,17 +688,41 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isPromptsGetRequest(message): {
         const { id, params } = message;
         const { name: promptName, arguments: promptArgs } = params;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isPromptsGetRequest",
+          LogLevel.DEBUG,
+        );
+
         const prompts = await this.contextModel.onClientListPrompts?.(
           contextOptions,
         );
 
         crashIfNot(prompts, { code: INTERNAL_ERROR, message: "No prompts" });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Prompts listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          prompts,
+          LogLevel.DEBUG,
+        );
+
         const prompt = prompts.find((p) =>
           textToSlug(p.name) === textToSlug(promptName)
         );
 
         crashIfNot(prompt, { code: INVALID_PARAMS, message: "No prompt" });
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Prompt found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          prompt,
+          LogLevel.DEBUG,
+        );
 
         const promptResponse = await this.contextModel.onClientGetPrompt?.(
           prompt,
@@ -584,6 +735,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No prompt messages",
         });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Prompt response",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          promptResponse,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<IPromptsGetResponse["result"]>(id, promptResponse),
         );
@@ -591,13 +751,37 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isToolsListRequest(message): {
         const { id, params } = message;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isToolsListRequest",
+          LogLevel.DEBUG,
+        );
+
         const tools = (await this.contextModel.onClientListTools?.(
           contextOptions,
         )) ?? [];
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No prompts" });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tools listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tools,
+          LogLevel.DEBUG,
+        );
+
         if (params) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Params received",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            params,
+            LogLevel.DEBUG,
+          );
+
           const { cursor } = params;
           const cursorIndex = tools.findIndex((p) =>
             String(getStringUid(p.name)) === cursor
@@ -610,6 +794,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         tools.splice(100);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tools spliced",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tools,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<IToolsListResponse["result"]>(id, { tools }),
         );
@@ -618,11 +811,26 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isToolsCallRequest(message): {
         const { id, params } = message;
         const { name: toolName, arguments: toolArgs, task } = params;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isToolsCallRequest",
+          LogLevel.DEBUG,
+        );
+
         const tools = await this.contextModel.onClientListTools?.(
           contextOptions,
         );
 
         crashIfNot(tools, { code: INTERNAL_ERROR, message: "No tools" });
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tools listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tools,
+          LogLevel.DEBUG,
+        );
 
         const tool = tools.find((p) =>
           textToSlug(p.name) === textToSlug(toolName)
@@ -630,11 +838,25 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         crashIfNot(tool, { code: INVALID_PARAMS, message: "No tool" });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tool found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tool,
+          LogLevel.DEBUG,
+        );
+
         const taskId = getUuid();
         const isTaskPresent = !isUndefined(task);
         const _abortController = new AbortController();
 
         if (isTaskPresent) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Requested execute tool as task",
+            LogLevel.DEBUG,
+          );
+
           crashIfNot(
             tool.execution?.taskSupport ||
               tool.execution?.taskSupport !== "forbidden",
@@ -658,6 +880,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
           // TODO: Modify
           this.tasks.set(taskId, { state, abortController: _abortController });
 
+          await this.contextModel.onInternalDebugInformation?.(
+            "Task created",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            state,
+            LogLevel.DEBUG,
+          );
+
+          // Alex: I don't return here because we need to execute the tool and prepare the task.
           await this.transport.send(
             successResponse<ITasksCreateResponse["result"]>(id, {
               task: state,
@@ -701,7 +933,12 @@ export class EasyMCPServer implements IMessageHandlerClass {
           toolContextOptions,
         );
 
+        /**
+         * Alex: If the user handled the tool call, then we do manage the promise to update the task status if it success or fail.
+         * This is just configuration for the promise, we do await it later with all this new logic within the promise.
+         */
         if (toolCall) {
+          // Prepare the task managment logic.
           toolCall
             .then((result) => {
               this.updateTaskState(taskId, {
@@ -746,6 +983,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         }
 
         if (!isTaskPresent) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Normal tool execution",
+            LogLevel.DEBUG,
+          );
+
           const toolResponse = await toolCall;
           const content = toolResponse instanceof Array
             ? toolResponse
@@ -758,6 +1000,26 @@ export class EasyMCPServer implements IMessageHandlerClass {
             code: INTERNAL_ERROR,
             message: "No tool messages",
           });
+
+          await this.contextModel.onInternalDebugInformation?.(
+            "Tool response",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            content,
+            LogLevel.DEBUG,
+          );
+
+          if (structuredOutput) {
+            await this.contextModel.onInternalDebugInformation?.(
+              "Tool structured output",
+              LogLevel.DEBUG,
+            );
+            await this.contextModel.onInternalDebugInformation?.(
+              structuredOutput,
+              LogLevel.DEBUG,
+            );
+          }
 
           await this.transport.send(
             successResponse<IToolsCallResponse["result"]>(id, {
@@ -776,6 +1038,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { id, params } = message;
         const { taskId } = params;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isTasksCancelRequest",
+          LogLevel.DEBUG,
+        );
+
         crashIfNot(this.tasks.has(taskId), {
           code: INVALID_PARAMS,
           message: `Task '${taskId}' not found`,
@@ -789,12 +1056,30 @@ export class EasyMCPServer implements IMessageHandlerClass {
             `Cannot cancel task: already in terminal status '${task.state.status}'.`,
         });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Task found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          task,
+          LogLevel.DEBUG,
+        );
+
         task.abortController.abort();
 
         const updatedTask = this.updateTaskState(taskId, {
           status: TaskStatus.CANCELLED,
           statusMessage: `Task '${taskId}' cancelled by client`,
         });
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Updated task",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          updatedTask,
+          LogLevel.DEBUG,
+        );
 
         await this.transport.send(
           successResponse<ITaskState>(id, updatedTask.state),
@@ -805,7 +1090,29 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { id, params } = message;
         const tasks = [...this.tasks.values()].map((task) => task.state);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isTasksListRequest",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tasks listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tasks,
+          LogLevel.DEBUG,
+        );
+
         if (params) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Params received",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            params,
+            LogLevel.DEBUG,
+          );
+
           const { cursor } = params;
           const cursorIndex = tasks.findIndex((p) =>
             String(getStringUid(p.taskId)) === cursor
@@ -818,6 +1125,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         tasks.splice(100);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Tasks spliced",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          tasks,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<ITasksListResponse["result"]>(id, {
             tasks,
@@ -829,6 +1145,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { id, params } = message;
         const { taskId } = params;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isTasksResultRequest",
+          LogLevel.DEBUG,
+        );
+
         crashIfNot(this.tasks.has(taskId), {
           code: INVALID_PARAMS,
           message: `Task '${taskId}' not found`,
@@ -836,12 +1157,48 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         const task = this.tasks.get(taskId)!;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Task found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          task,
+          LogLevel.DEBUG,
+        );
+
         // Check this!
         if (TASK_TERMINAL_STATUS.includes(task.state.status)) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Task terminated",
+            LogLevel.DEBUG,
+          );
+          await this.contextModel.onInternalDebugInformation?.(
+            task.response ?? "UNDEFINED",
+            LogLevel.DEBUG,
+          );
+
           return this.transport.send(task.response!);
         }
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Waiting for task",
+          LogLevel.DEBUG,
+        );
+
         const taskSuccessResponse = await task.promise;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Task executed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          "Task response",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          taskSuccessResponse ?? "UNDEFINED",
+          LogLevel.DEBUG,
+        );
 
         await this.transport.send(
           successResponse<IToolsCallResponse["result"]>(id, {
@@ -858,12 +1215,26 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { id, params } = message;
         const { taskId } = params;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isTasksGetRequest",
+          LogLevel.DEBUG,
+        );
+
         crashIfNot(this.tasks.has(taskId), {
           code: INVALID_PARAMS,
           message: `Task '${taskId}' not found`,
         });
 
         const task = this.tasks.get(taskId)!;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Task found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          task,
+          LogLevel.DEBUG,
+        );
 
         await this.transport.send(successResponse<ITaskState>(id, task.state));
         break;
@@ -886,12 +1257,27 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         const { id, params } = message;
         const { ref, argument } = params;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isCompletionCompleteRequest",
+          LogLevel.DEBUG,
+        );
+
         const completion = await this.contextModel.onClientRequestsCompletion?.(
           ref.type === "ref/prompt"
             ? ContextModelEntityType.PROMPT
             : ContextModelEntityType.RESOURCE,
           argument,
           contextOptions,
+        );
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Completion response",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          completion ?? "UNDEFINED",
+          LogLevel.DEBUG,
         );
 
         if (isUndefined(completion)) {
@@ -911,6 +1297,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
           .splice(0, 100);
         completion.total = completion.values.length;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Completion spliced",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          completion,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<ICompletionCompleteResponse["result"]>(id, {
             completion,
@@ -920,6 +1315,12 @@ export class EasyMCPServer implements IMessageHandlerClass {
       }
       case isResourcesListRequest(message): {
         const { id, params } = message;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isResourcesListRequest",
+          LogLevel.DEBUG,
+        );
+
         const resources = await this.contextModel.onClientListResources?.(
           contextOptions,
         );
@@ -929,7 +1330,21 @@ export class EasyMCPServer implements IMessageHandlerClass {
           message: "No resources",
         });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Resources listed",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          resources,
+          LogLevel.DEBUG,
+        );
+
         if (params) {
+          await this.contextModel.onInternalDebugInformation?.(
+            "Params received",
+            LogLevel.DEBUG,
+          );
+
           const { cursor } = params;
           const cursorIndex = resources.findIndex((p) =>
             String(getStringUid(p.name)) === cursor
@@ -942,6 +1357,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
 
         resources.splice(100);
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Resources spliced",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          resources,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<IResourcesListResponse["result"]>(id, { resources }),
         );
@@ -950,6 +1374,16 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isResourcesReadRequest(message): {
         const { id, params } = message;
         const { uri } = params;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isResourcesReadRequest",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isResourcesReadRequest",
+          LogLevel.DEBUG,
+        );
+
         const resource = await this.contextModel.onClientReadResource?.(
           uri,
           contextOptions,
@@ -961,6 +1395,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
           data: { uri },
         });
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Resource found",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          resource,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<IResourcesReadResponse["result"]>(id, {
             contents: resource,
@@ -971,12 +1414,23 @@ export class EasyMCPServer implements IMessageHandlerClass {
       case isLoggingSetLevelRequest(message): {
         const { id, params } = message;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isLoggingSetLevelRequest",
+          LogLevel.DEBUG,
+        );
+
         crashIfNot(Object.values(LogLevel).includes(params.level), {
           message: "Invalid log level",
           code: INVALID_PARAMS,
         });
 
         this.setLogLevel(params.level);
+
+        await this.contextModel.onInternalDebugInformation?.(
+          `Loging level "${params.level}"`,
+          LogLevel.DEBUG,
+        );
+
         await this.transport.send(
           successResponse<ILoggingSetLevelResponse["result"]>(id, {}),
         );
@@ -986,6 +1440,15 @@ export class EasyMCPServer implements IMessageHandlerClass {
         const { id, params } = message;
         const { uri } = params;
 
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isResourcesSubscribeRequest",
+          LogLevel.DEBUG,
+        );
+        await this.contextModel.onInternalDebugInformation?.(
+          `uri "${uri}"`,
+          LogLevel.DEBUG,
+        );
+
         this.registerResourceSubscription(uri);
         await this.transport.send(
           successResponse<IResourcesSubscribeResponse["result"]>(id, {}),
@@ -993,17 +1456,33 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       case isRootsListChangedNotification(message): {
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isRootsListChangedNotification",
+          LogLevel.DEBUG,
+        );
+
         this.contextModel.onClientRootsChanged?.(contextOptions);
         break;
       }
       case isGenericResultResponse(message): {
         const { id, result } = message;
+
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case isGenericResultResponse",
+          LogLevel.DEBUG,
+        );
+
         const defeeredPromise = this.getDeeferedPromiseById(id);
 
         crashIfNot(defeeredPromise, {
           code: INVALID_PARAMS,
           message: `No request found related with id '${id}'`,
         });
+
+        await this.contextModel.onInternalDebugInformation?.(
+          `Defeered promise type "${defeeredPromise.type}"`,
+          LogLevel.DEBUG,
+        );
 
         if (defeeredPromise.type === DeeferedPromiseType.COMPLETION) {
           const completion = result as ICompletionMessageResponse["result"];
@@ -1025,6 +1504,11 @@ export class EasyMCPServer implements IMessageHandlerClass {
         break;
       }
       default: {
+        await this.contextModel.onInternalDebugInformation?.(
+          "Case default",
+          LogLevel.DEBUG,
+        );
+
         if (isGenericRequest(message)) {
           const { method } = message;
 
