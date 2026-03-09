@@ -263,7 +263,27 @@ export class EasyMCPServer implements IMessageHandlerClass {
     } catch (e) {
       await this.contextModel.onInternalDebugInformation?.(
         "Exception detected!",
-        LogLevel.INFO,
+        LogLevel.ERROR,
+      );
+
+      await this.contextModel.onInternalDebugInformation?.(
+        (e as Error).name,
+        LogLevel.ERROR,
+      );
+
+      await this.contextModel.onInternalDebugInformation?.(
+        (e as Error).message,
+        LogLevel.ERROR,
+      );
+
+      await this.contextModel.onInternalDebugInformation?.(
+        (e as Error).cause ?? "No cause.",
+        LogLevel.ERROR,
+      );
+
+      await this.contextModel.onInternalDebugInformation?.(
+        (e as Error).stack ?? "No stack.",
+        LogLevel.ERROR,
       );
 
       if (e instanceof RequestException) {

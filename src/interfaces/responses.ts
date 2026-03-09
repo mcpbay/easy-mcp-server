@@ -78,7 +78,7 @@ export interface IToolsListResponse
 export interface IToolsCallResponse extends
   IGenericProtocolResponse<
     {
-      content: (IPromptMessage | IToolResultResourceLinkContent)[];
+      content: (IPromptMessage["content"] | IToolResultResourceLinkContent)[];
       isError: boolean;
       structuredContent?: Record<string, unknown>;
       _meta?: {
